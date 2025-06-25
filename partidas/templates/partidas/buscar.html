@@ -1,0 +1,172 @@
+{% extends "partidas/base.html" %}
+
+{% block content %}
+<style>
+    body {
+        background-image: url('https://sisarm.com/wp-content/uploads/2021/11/19-191450_import-and-export-1024x576.jpeg');
+        background-size: cover;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+    }
+    .buscar-container {
+        max-width: 1200px;
+        margin: auto;
+        background-color: #ffffffdd;
+        padding: 2rem;
+        border-radius: 10px;
+    }
+</style>
+
+<div class="buscar-container">
+    <h2 class="text-center mb-4">Buscar Partidas Arancelarias</h2>
+
+    <form method="get">
+        <div class="row g-2 mb-3 justify-content-center">
+            <div class="col-md-6">
+                <input type="text" name="termino" class="form-control" placeholder="Buscar por código o descripción..." value="{{ request.GET.termino }}">
+            </div>
+            <div class="col-md-3">
+                <button class="btn btn-secondary w-100" type="button" data-bs-toggle="collapse" data-bs-target="#filtrosCollapse" aria-expanded="false" aria-controls="filtrosCollapse">
+                    Filtro
+                </button>
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary w-100">Buscar</button>
+            </div>
+        </div>
+
+        <div class="collapse mb-4" id="filtrosCollapse">
+            <div class="card card-body">
+                <div class="row g-2">
+                    <div class="col-md-3">
+                        <select name="capitulo" class="form-select">
+                            <option value="">Capítulo</option>
+                            {% for cap in capitulos %}
+                                <option value="{{ cap }}" {% if filtros.capitulo == cap %}selected{% endif %}>{{ cap }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select name="gravamen" class="form-select">
+                            <option value="">Gravamen</option>
+                            {% for g in gravamenes %}
+                                <option value="{{ g }}" {% if filtros.gravamen == g %}selected{% endif %}>{{ g }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select name="tipo_documento" class="form-select">
+                            <option value="">Tipo Documento</option>
+                            {% for t in tipos_doc %}
+                                <option value="{{ t }}" {% if filtros.tipo_documento == t %}selected{% endif %}>{{ t }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select name="entidad_emite" class="form-select">
+                            <option value="">Entidad Emite</option>
+                            {% for e in entidades %}
+                                <option value="{{ e }}" {% if filtros.entidad_emite == e %}selected{% endif %}>{{ e }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    {% if request.GET.termino or filtros.capitulo or filtros.gravamen or filtros.tipo_documento or filtros.entidad_emite %}
+        <div class="mt-3">
+            {% if filtros.capitulo %}
+                <h5> Resultados filtrados por Capítulo: "{{ filtros.capitulo }}"</h5>
+            {% elif filtros.gravamen %}
+                <h5> Resultados filtrados por Gravamen: "{{ filtros.gravamen }}"</h5>
+            {% elif filtros.tipo_documento %}
+                <h5> Resultados filtrados por Tipo de Documento: "{{ filtros.tipo_documento }}"</h5>
+            {% elif filtros.entidad_emite %}
+                <h5> Resultados filtrados por Entidad: "{{ filtros.entidad_emite }}"</h5>
+            {% elif termino %}
+                <h5> Resultados para: "{{ termino }}"</h5>
+            {% endif %}
+        </div>
+
+        {% if resultados %}
+            <div class="table-responsive mt-3">
+                <table class="table table-bordered table-striped">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Partida</th>
+                            <th>Subpartida</th>
+                            <th>Código</th>
+                            <th>Descripción</th>
+                            <th>Gravamen</th>
+                            <th>ICE/IEHD</th>
+                            <th>Unidad de Medida</th>
+                            <th>Despacho Frontera</th>
+                            <th>Tipo Documento</th>
+                            <th>Entidad que Emite</th>
+                            <th>Disposición Legal</th>
+                            <th>ACE 36/47 (VEN)</th>
+                            <th>ACE 22 (CHI/PROT)</th>
+                            <th>ACE 66 (México)</th>
+                            <th>Capítulo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for partida in resultados %}
+                        <tr>
+                            <td>{{ partida.partida }}</td>
+                            <td>{{ partida.subpartida }}</td>
+                            <td><a href="{% url 'detalle_partida' partida.id %}">{{ partida.codigo }}</a></td>
+                            <td>{{ partida.descripcion_resaltada|safe }}</td>
+                            <td>{{ partida.gravamen }}</td>
+                            <td>{{ partida.ice_iehd }}</td>
+                            <td>{{ partida.unidad_medida }}</td>
+                            <td>{{ partida.despacho_frontera }}</td>
+                            <td>{{ partida.tipo_documento }}</td>
+                            <td>{{ partida.entidad_emite }}</td>
+                            <td>{{ partida.disp_legal }}</td>
+                            <td>{{ partida.can_ace36_ace47_ven }}</td>
+                            <td>{{ partida.ace22_chi_prot }}</td>
+                            <td>{{ partida.ace66_mexico }}</td>
+                            <td>{{ partida.capitulo }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if relacionadas %}
+            <div class="mt-4 p-3 bg-light border rounded">
+                <h5>Otras partidas del capítulo "{{ capitulo }}"</h5>
+                <ul>
+                    {% for item in relacionadas %}
+                    <li>
+                        <a href="{% url 'detalle_partida' item.id %}">{{ item.codigo }} - {{ item.descripcion }}</a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            {% if similares %}
+            <div class="mt-4 p-3 bg-light border rounded">
+                <h5>Partidas similares por descripción</h5>
+                <ul>
+                    {% for item in similares %}
+                    <li>
+                        <a href="{% url 'detalle_partida' item.id %}">
+                            {{ item.codigo }} - {{ item.descripcion_resaltada|safe }}
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+        {% else %}
+            <div class="alert alert-warning text-center mt-4">No se encontraron resultados.</div>
+        {% endif %}
+    {% endif %}
+</div>
+{% endblock %}

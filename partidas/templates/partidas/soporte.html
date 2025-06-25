@@ -1,0 +1,61 @@
+{% extends "partidas/base.html" %}
+
+{% block content %}
+<style>
+    body {
+        background-image: url('https://sisarm.com/wp-content/uploads/2021/11/19-191450_import-and-export-1024x576.jpeg');
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+    }
+
+    .soporte-container {
+        max-width: 600px;
+        margin: 4rem auto;
+        background: rgba(255, 255, 255, 0.96);
+        padding: 2rem;
+        border-radius: 15px;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+    }
+
+    .soporte-container h2 {
+        text-align: center;
+        margin-bottom: 1rem;
+        font-weight: bold;
+    }
+
+    .soporte-container p {
+        text-align: center;
+        font-size: 1rem;
+        color: #444;
+    }
+
+    .soporte-container .btn {
+        font-size: 1.1rem;
+        padding: 0.75rem 1.5rem;
+    }
+
+    .soporte-container .text-muted {
+        font-size: 0.9rem;
+    }
+</style>
+
+<div class="soporte-container">
+    <h2>Soporte Técnico</h2>
+    <p>
+        Si tienes alguna duda o problema con el sistema, puedes contactarnos por WhatsApp.
+    </p>
+
+    <div class="text-center mt-4">
+        <a href="https://wa.me/5916919015?text=Hola, necesito ayuda con SISARM Search."
+           target="_blank"
+           class="btn btn-success btn-lg">
+             Contactar por WhatsApp
+        </a>
+    </div>
+
+    <p class="text-muted mt-4 text-center">
+        También puedes escribir a <strong>soporte@sisarm.com</strong> si no tienes WhatsApp.
+    </p>
+</div>
+{% endblock %}

@@ -1,0 +1,42 @@
+{% extends "partidas/base.html" %}
+
+{% block content %}
+<style>
+    body {
+        background-image: url('https://sisarm.com/wp-content/uploads/2021/11/19-191450_import-and-export-1024x576.jpeg');
+        background-size: cover;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+    }
+
+    .historial-container {
+        max-width: 700px;
+        margin: 4rem auto;
+        background-color: rgba(255, 255, 255, 0.95);
+        padding: 2rem;
+        border-radius: 10px;
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .historial-container h2 {
+        text-align: center;
+        margin-bottom: 1.5rem;
+    }
+</style>
+
+<div class="historial-container">
+    <h2> Historial de Búsquedas</h2>
+    <ul class="list-group">
+        {% for item in historial %}
+            <li class="list-group-item">
+                {{ item.fecha|date:"d M Y H:i" }} — 
+                <strong>{{ item.termino_buscado }}</strong>
+            </li>
+        {% empty %}
+            <li class="list-group-item text-muted">
+                No hay búsquedas registradas.
+            </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endblock %}

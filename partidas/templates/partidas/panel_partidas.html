@@ -1,0 +1,18 @@
+{% extends "partidas/base.html" %}
+{% block content %}
+<h2>Administrar Partidas</h2>
+<table class="table table-striped">
+    <tr><th>Código</th><th>Descripción</th><th>Acciones</th></tr>
+    {% for partida in partidas %}
+    <tr>
+        <td>{{ partida.codigo }}</td>
+        <td>{{ partida.descripcion|truncatechars:50 }}</td>
+        <td>
+            <a href="{% url 'editar_partida' partida.id %}" class="btn btn-sm btn-warning">Editar</a>
+            <a href="{% url 'eliminar_partida' partida.id %}" class="btn btn-sm btn-danger">Eliminar</a>
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+<a class="btn btn-success" href="{% url 'crear_partida' %}">+ Nueva Partida</a>
+{% endblock %}

@@ -1,0 +1,86 @@
+{% extends "partidas/base.html" %}
+
+{% block content %}
+<style>
+    body {
+        background-image: url('https://sisarm.com/wp-content/uploads/2021/11/19-191450_import-and-export-1024x576.jpeg');
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        position: relative;
+        min-height: 100vh;
+        font-family: Arial, sans-serif;
+    }
+
+    .main-menu-container {
+        max-width: 700px;
+        margin: 5rem auto;
+        padding: 2.5rem;
+        text-align: center;
+        background-color: rgba(255, 255, 255, 0.9);
+        border-radius: 20px;
+        box-shadow: 0 0 25px rgba(0, 0, 0, 0.2);
+        z-index: 2;
+        position: relative;
+    }
+
+    .main-menu-container h2 {
+        font-size: 2rem;
+        margin-bottom: 2rem;
+        color: #003366;
+    }
+
+    .button-grid {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 1rem;
+    }
+
+    .button-grid a {
+        padding: 1rem 2rem;
+        text-decoration: none;
+        background-color: #cce5ff;
+        color: #003366;
+        font-weight: bold;
+        border: none;
+        border-radius: 8px;
+        transition: background-color 0.3s ease;
+        display: inline-block;
+    }
+
+    .button-grid a:hover {
+        background-color: #b3d7ff;
+    }
+
+    .marca-agua {
+        position: fixed;
+        bottom: 16px;
+        right: 20px;
+        opacity: 0.4;  
+        font-size: 0.85rem; 
+        color: #ffffff; 
+        pointer-events: none; 
+        z-index: 1000;  
+    }
+</style>
+
+<div class="main-menu-container">
+    <h2>Bienvenido a SISARM Search</h2>
+
+    <div class="button-grid">
+        <a href="{% url 'buscar_partidas' %}">Buscar Partidas</a>
+        <a href="{% url 'historial_buscador' %}">Historial</a>
+        <a href="{% url 'chat_asistente' %}">Chat de Ayuda</a>
+        <a href="{% url 'manuales' %}">Manuales</a>
+
+        {% if request.user.is_staff %}
+        <a href="{% url 'importar_excel' %}">Importar Excel</a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="marca-agua">
+    ©2025 SIS Code Creator – Para SISARM Bolivia
+</div>
+{% endblock %}

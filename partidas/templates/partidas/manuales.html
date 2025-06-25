@@ -1,0 +1,96 @@
+{% extends "partidas/base.html" %}
+
+{% block content %}
+<style>
+    body {
+        background-image: url('https://sisarm.com/wp-content/uploads/2021/11/19-191450_import-and-export-1024x576.jpeg');
+        background-size: cover;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+    }
+
+    .manual-contenedor {
+        max-width: 900px;
+        margin: 4rem auto;
+        background-color: rgba(255, 255, 255, 0.95);
+        padding: 2.5rem;
+        border-radius: 12px;
+        box-shadow: 0 0 20px rgba(0,0,0,0.25);
+        font-family: 'Segoe UI', sans-serif;
+    }
+
+    .manual-contenedor h2 {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    .manual-contenedor h4 {
+        margin-top: 1.5rem;
+        color: #003366;
+    }
+
+    .manual-contenedor p, .manual-contenedor li {
+        font-size: 1rem;
+        line-height: 1.6;
+        color: #222;
+    }
+
+    .manual-contenedor ul {
+        padding-left: 1.5rem;
+    }
+</style>
+
+<div class="manual-contenedor">
+    <h2> Manual de Uso del Sistema SISARM Search</h2>
+
+    <h4>1. Inicio de sesión</h4>
+    <ul>
+        <li>Accede al sistema con tu nombre de usuario y contraseña.</li>
+        <li>Si no tienes cuenta, haz clic en “Crear nueva cuenta”.</li>
+    </ul>
+
+    <h4>2. Pantalla principal</h4>
+    <ul>
+        <li> Buscar Partidas</li>
+        <li> Historial</li>
+        <li> Manuales</li>
+        <li> Chat de Ayuda</li>
+        <li> Importar Excel (administradores)</li>
+    </ul>
+
+    <h4>3. Buscar partidas arancelarias</h4>
+    <ul>
+        <li>Haz clic en “Buscar Partidas”.</li>
+        <li>Escribe un código o palabra clave.</li>
+        <li>Presiona “Buscar” y revisa los resultados.</li>
+        <li>Haz clic en cualquier código para ver más detalles.</li>
+    </ul>
+
+    <h4>4. Ver historial</h4>
+    <ul>
+        <li>Accede a “Historial”.</li>
+        <li>Visualiza tus búsquedas anteriores con fecha.</li>
+    </ul>
+
+
+    <h4>5. Asistente virtual</h4>
+    <ul>
+        <li>Ingresa a “Chat de Ayuda”.</li>
+        <li>Escribe tu consulta (ej. “licencia”, “error”).</li>
+    </ul>
+
+    <h4>6. Licencia</h4>
+    <p>Tu licencia debe estar activa para usar el sistema. Si aparece el mensaje “Licencia Expirada”, contacta al administrador.</p>
+
+    <h4>7. Cerrar sesión</h4>
+    <p>Puedes cerrar sesión desde la parte superior derecha.</p>
+
+    <h4> Recomendaciones finales</h4>
+    <ul>
+        <li>Usa palabras clave claras para buscar.</li>
+        <li>Mantén tu licencia al día.</li>
+        <li>Consulta este manual si tienes dudas.</li>
+        <li>Contacta al administrador en caso de errores.</li>
+    </ul>
+</div>
+{% endblock %}

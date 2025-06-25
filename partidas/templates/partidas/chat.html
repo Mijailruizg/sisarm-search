@@ -1,0 +1,216 @@
+{% extends "partidas/base.html" %}
+
+{% block content %}
+<style>
+    body {
+        background-image: url('https://sisarm.com/wp-content/uploads/2021/11/19-191450_import-and-export-1024x576.jpeg');
+        background-size: cover;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+    }
+
+    .chat-container {
+        max-width: 800px;
+        margin: 4rem auto;
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 20px;
+        box-shadow: 0 0 30px rgba(0, 0, 0, 0.25);
+        padding: 2.5rem;
+    }
+
+    .chat-title {
+        font-size: 2.2rem;
+        text-align: center;
+        margin-bottom: 2rem;
+        font-weight: bold;
+        color: #2c2c2c;
+    }
+
+    .chat-wrapper {
+        display: flex;
+        flex-direction: column;
+        max-height: 480px;
+        overflow-y: auto;
+        scroll-behavior: smooth;
+        padding-right: 1rem;
+    }
+
+    .chat-bubble {
+        padding: 1rem 1.5rem;
+        margin-bottom: 1rem;
+        border-radius: 20px;
+        max-width: 90%;
+        animation: fadeInUp 0.3s ease-in-out;
+        word-break: break-word;
+        white-space: pre-wrap;
+        line-height: 1.4;
+    }
+
+    .chat-user {
+        background-color: #dceeff;
+        align-self: flex-end;
+        margin-left: auto;
+    }
+
+    .chat-bot {
+        background-color: #e1f8e9;
+        align-self: flex-start;
+        margin-right: auto;
+        padding-left: 1.2rem;
+    }
+
+    /*Elimina márgenes de contenido que viene desde respuesta */
+    .chat-bot * {
+        margin: 0 !important;
+        padding: 0 !important;
+        line-height: 1.4 !important;
+    }
+
+    .input-group input {
+        border-radius: 12px;
+        font-size: 1rem;
+    }
+
+    .input-group .btn {
+        border-radius: 12px;
+        font-size: 1rem;
+    }
+
+    .suggestions {
+        margin-top: 1rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .suggestions .badge {
+        background-color: #444;
+        color: white;
+        padding: 0.4rem 0.9rem;
+        border-radius: 12px;
+        font-size: 0.9rem;
+        cursor: pointer;
+        user-select: none;
+        transition: background-color 0.2s;
+    }
+
+    .suggestions .badge:hover {
+        background-color: #000;
+    }
+
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .typing-loader {
+        display: flex;
+        gap: 6px;
+        margin-top: 0.5rem;
+        margin-left: 8px;
+    }
+
+    .typing-loader span {
+        width: 8px;
+        height: 8px;
+        background-color: #888;
+        border-radius: 50%;
+        animation: bounce 0.6s infinite alternate;
+    }
+
+    .typing-loader span:nth-child(2) {
+        animation-delay: 0.2s;
+    }
+
+    .typing-loader span:nth-child(3) {
+        animation-delay: 0.4s;
+    }
+
+    @keyframes bounce {
+        to {
+            transform: translateY(-6px);
+        }
+    }
+</style>
+
+<div class="chat-container">
+    <h2 class="chat-title">Asistente Virtual</h2>
+
+    <div class="chat-wrapper" id="chatWrapper">
+        {% if mensaje %}
+            <div class="chat-bubble chat-user"><strong>Tú:</strong> {{ mensaje }}</div>
+        {% endif %}
+
+        {% if respuesta %}
+            <div class="chat-bubble chat-bot" id="respuestaBot" style="display:none;">
+                <div style="margin-bottom: 0.4rem; font-weight: bold;">Asistente</div>
+                <div style="margin-bottom: 0.5rem;" class="respuesta-contenido">{{ respuesta|safe }}</div>
+
+                {% if sugerencias %}
+                <div class="suggestions">
+                    {% for sugerencia in sugerencias %}
+                        <span class="badge" onclick="insertarEjemplo('{{ sugerencia }}')">{{ sugerencia }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            <div id="typingIndicator" class="chat-bubble chat-bot">
+                <div class="typing-loader">
+                    <span></span><span></span><span></span>
+                </div>
+            </div>
+        {% elif mensaje %}
+            <div class="chat-bubble chat-bot">
+                <div style="margin-bottom: 0.4rem; font-weight: bold;">Asistente</div>
+                <div style="margin-bottom: 0.5rem;">Lo siento, no entendí tu consulta. Prueba con temas como:</div>
+                <div class="suggestions">
+                    <span class="badge" onclick="insertarEjemplo('Buscar partida')">Buscar partida</span>
+                    <span class="badge" onclick="insertarEjemplo('Ver manuales')">Ver manuales</span>
+                    <span class="badge" onclick="insertarEjemplo('Mi licencia')">Mi licencia</span>
+                    <span class="badge" onclick="insertarEjemplo('Contactar soporte')">Contactar soporte</span>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <form method="get" class="mt-4" onsubmit="return validarChat();">
+        <div class="input-group">
+            <input id="campoMensaje" type="text" name="mensaje" class="form-control" placeholder="Escribe tu mensaje..." value="{{ mensaje }}" autofocus>
+            <button class="btn btn-primary">Enviar</button>
+        </div>
+    </form>
+</div>
+
+<script>
+    function validarChat() {
+        const campo = document.getElementById("campoMensaje");
+        if (!campo.value.trim()) {
+            campo.focus();
+            return false;
+        }
+        return true;
+    }
+
+    function insertarEjemplo(texto) {
+        const campo = document.getElementById("campoMensaje");
+        campo.value = texto;
+        campo.focus();
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const chat = document.getElementById("chatWrapper");
+        chat.scrollTop = chat.scrollHeight;
+
+        const respuestaBot = document.getElementById("respuestaBot");
+        const typingIndicator = document.getElementById("typingIndicator");
+
+        if (respuestaBot && typingIndicator) {
+            setTimeout(() => {
+                typingIndicator.style.display = "none";
+                respuestaBot.style.display = "block";
+                chat.scrollTop = chat.scrollHeight;
+            }, 1200);
+        }
+    });
+</script>
+{% endblock %}

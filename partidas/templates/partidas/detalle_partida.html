@@ -1,0 +1,78 @@
+{% extends "partidas/base.html" %}
+
+{% block extra_styles %}
+<style>
+    body.detalle-bg {
+        background-image: url('https://sisarm.com/wp-content/uploads/2021/11/19-191450_import-and-export-1024x576.jpeg');
+        background-size: cover;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+        background-position: center;
+    }
+
+    .detalle-container {
+        background-color: rgba(255, 255, 255, 0.95);
+        padding: 2rem;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.2);
+        max-width: 900px;
+        margin: 50px auto;
+    }
+
+    h2 {
+        text-align: center;
+        font-weight: bold;
+        margin-bottom: 30px;
+    }
+
+    table th {
+        background-color: #f1f1f1;
+        width: 30%;
+    }
+
+    table td {
+        background-color: #ffffff;
+    }
+
+    .btn-secondary {
+        display: block;
+        margin: 30px auto 0 auto;
+    }
+</style>
+{% endblock %}
+
+{% block body_class %}detalle-bg{% endblock %}
+
+{% block content %}
+<div class="detalle-container">
+    <h2>Detalle de Partida Arancelaria</h2>
+    <table class="table table-striped table-bordered mt-3">
+        <tr>
+            <th>Código</th>
+            <td>{{ partida.codigo|default:"No especificado" }}</td>
+        </tr>
+        <tr>
+            <th>Descripción</th>
+            <td>{{ partida.descripcion|default:"No especificado" }}</td>
+        </tr>
+        <tr>
+            <th>Gravamen</th>
+            <td>{{ partida.gravamen|default:"No especificado" }}</td>
+        </tr>
+        <tr>
+            <th>Permisos</th>
+            <td>{{ partida.permisos|default:"No especificado" }}</td>
+        </tr>
+        <tr>
+            <th>Subpartidas</th>
+            <td>{{ partida.subpartida|default:"No especificado" }}</td>
+        </tr>
+        <tr>
+            <th>Referencia Legal</th>
+            <td>{{ partida.disp_legal|default:"No especificado" }}</td>
+        </tr>
+    </table>
+
+    <a class="btn btn-secondary" href="{% url 'buscar_partidas' %}">Volver a la búsqueda</a>
+</div>
+{% endblock %}
