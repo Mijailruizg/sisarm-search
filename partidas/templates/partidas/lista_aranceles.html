@@ -1,0 +1,32 @@
+{% extends 'partidas/base.html' %}
+{% load static %}
+
+{% block extra_styles %}
+<style>
+  body.detalle-bg {
+    background-image: url('{% static "img/fondo.jpg.png" %}');
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    background-position: center;
+  }
+  .detalle-container { background-color: rgba(255,255,255,0.95); padding: 1rem; border-radius: 8px; }
+</style>
+{% endblock %}
+
+{% block body_class %}detalle-bg{% endblock %}
+
+{% block content %}
+<h2>Índice de capítulos</h2>
+<div class="list-group">
+  {% for c in capitulos %}
+    {% if c.capitulo %}
+      <a class="list-group-item list-group-item-action" href="{% url 'aranceles_por_capitulo' c.capitulo %}">
+        Capítulo {{ c.capitulo }} <span class="badge bg-primary float-end">{{ c.count }}</span>
+      </a>
+    {% else %}
+      <div class="list-group-item">Capítulo (sin datos) <span class="badge bg-secondary float-end">{{ c.count }}</span></div>
+    {% endif %}
+  {% endfor %}
+</div>
+{% endblock %}

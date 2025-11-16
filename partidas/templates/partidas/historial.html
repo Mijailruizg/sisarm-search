@@ -1,42 +1,201 @@
 {% extends "partidas/base.html" %}
 
-{% block content %}
+{% load static %}
+{% block extra_styles %}
 <style>
-    body {
-        background-image: url('https://sisarm.com/wp-content/uploads/2021/11/19-191450_import-and-export-1024x576.jpeg');
+    body.detalle-bg {
+        background-image: url('{% static "img/fondo.jpg.png" %}');
         background-size: cover;
         background-repeat: no-repeat;
         background-attachment: fixed;
+        background-position: center;
     }
-
-    .historial-container {
-        max-width: 700px;
-        margin: 4rem auto;
-        background-color: rgba(255, 255, 255, 0.95);
-        padding: 2rem;
-        border-radius: 10px;
-        box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
-    }
-
-    .historial-container h2 {
-        text-align: center;
-        margin-bottom: 1.5rem;
-    }
+    .historial-container { max-width: 700px; margin: 4rem auto; background-color: rgba(255,255,255,0.95); padding: 2rem; border-radius: 10px; box-shadow: 0 0 15px rgba(0,0,0,0.2); }
 </style>
+{% endblock %}
+
+{% block body_class %}detalle-bg{% endblock %}
+
+{% block content %}
 
 <div class="historial-container">
     <h2> Historial de Búsquedas</h2>
+    <form method="post" id="historialForm">
+        {% csrf_token %}
+        <div class="mb-2 d-flex justify-content-between align-items-center">
+            <div>
+                <input type="checkbox" id="select-all" /> <label for="select-all">Seleccionar todo</label>
+            </div>
+            <div>
+                <button type="submit" name="action" value="delete_selected" id="btn-delete-selected" class="btn btn-danger btn-sm" disabled>
+                    Eliminar seleccionados (<span id="selected-count">0</span>)
+                </button>
+                <button type="submit" name="action" value="delete_all" id="btn-delete-all" class="btn btn-outline-danger btn-sm" onclick="return confirm('Eliminar TODO el historial? Esta acción no se puede deshacer.')">
+                    Eliminar todo
+                </button>
+            </div>
+        </div>
     <ul class="list-group">
-        {% for item in historial %}
+        {% for entry in historial %}
+            {% with item=entry.item matches=entry.matches %}
             <li class="list-group-item">
-                {{ item.fecha|date:"d M Y H:i" }} — 
-                <strong>{{ item.termino_buscado }}</strong>
+                <div class="d-flex align-items-start">
+                    <div class="me-2">
+                        <input type="checkbox" name="selected" value="{{ item.id }}" class="select-item" id="sel-{{ item.id }}" />
+                    </div>
+                    <div class="flex-grow-1">
+                        {{ item.fecha|date:"d M Y H:i" }} — 
+                        <div class="d-flex align-items-center">
+                            {% if matches %}
+                                {# Si hay al menos una partida encontrada, enlazamos al detalle de la primera coincidencia #}
+                                <a class="me-2 historial-link" href="{% url 'detalle_partida' matches.0.id %}" data-partida-id="{{ matches.0.id }}"><strong style="color:#0d6efd; text-decoration:underline;">{{ item.termino_buscado }}</strong></a>
+                            {% else %}
+                                <a class="me-2 historial-link" href="{% url 'buscar_partidas' %}?termino={{ item.termino_buscado|urlencode }}" data-partida-id=""><strong style="color:#0d6efd; text-decoration:underline;">{{ item.termino_buscado }}</strong></a>
+                            {% endif %}
+                            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#hist-{{ forloop.counter }}" aria-expanded="false" aria-controls="hist-{{ forloop.counter }}">
+                                Ver partidas
+                            </button>
+                        </div>
+                        {% if item.resultados %}
+                        <div class="small text-muted mt-1">Resumen: {{ item.resultados }}</div>
+                        {% endif %}
+
+                <div class="collapse mt-3" id="hist-{{ forloop.counter }}">
+                    {% if matches %}
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sm">
+                            <thead class="table-light">
+                                                <tr>
+                                                    <th>Capítulo</th>
+                                                    <th>Partida</th>
+                                                    <th>Código</th>
+                                                    <th>Descripción</th>
+                                                    <th>Gravamen</th>
+                                                    <th>ICE/IEHD</th>
+                                                    <th>Unidad de Medida</th>
+                                                    <th>Despacho Frontera</th>
+                                                    <th>Tipo Documento</th>
+                                                    <th>Entidad que Emite</th>
+                                                    <th>Disposición Legal</th>
+                                                    <th>ACE 36/47 (VEN)</th>
+                                                    <th>ACE22 CHI</th>
+                                                    <th>ACE22 PROT</th>
+                                                    <th>ACE 66 (México)</th>
+                                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for p in matches %}
+                                <tr>
+                                    <td>{{ p.capitulo }}</td>
+                                    <td>{{ p.partida }}</td>
+                                    <td><a href="{% url 'detalle_partida' p.id %}">{{ p.codigo }}</a></td>
+                                    <td>{{ p.descripcion }}</td>
+                                    <td>{{ p.gravamen }}</td>
+                                    <td>{{ p.ice_iehd }}</td>
+                                    <td>{{ p.unidad_medida }}</td>
+                                    <td>{{ p.despacho_frontera }}</td>
+                                    <td>{{ p.tipo_documento }}</td>
+                                    <td>{{ p.entidad_emite }}</td>
+                                    <td>{{ p.disp_legal }}</td>
+                                    <td>{{ p.can_ace36_ace47_ven }}</td>
+                                    <td>{{ p.ace22_chi|default:"N/A" }}</td>
+                                    <td>{{ p.ace22_prot|default:"N/A" }}</td>
+                                    <td>{{ p.ace66_mexico }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                        <div class="text-muted">No se encontraron partidas para este término.</div>
+                    {% endif %}
+                </div>
             </li>
+            {% endwith %}
         {% empty %}
             <li class="list-group-item text-muted">
                 No hay búsquedas registradas.
             </li>
         {% endfor %}
     </ul>
+    
+    </form>
+    <script>
+        // Seleccionar/deseleccionar todo y actualizar contador/botón
+        document.addEventListener('DOMContentLoaded', function(){
+            const selectAll = document.getElementById('select-all');
+            const btnDeleteSelected = document.getElementById('btn-delete-selected');
+            const countSpan = document.getElementById('selected-count');
+
+            function updateSelectedCount(){
+                const checkboxes = Array.from(document.querySelectorAll('.select-item'));
+                const selected = checkboxes.filter(cb => cb.checked).length;
+                countSpan.textContent = selected;
+                btnDeleteSelected.disabled = selected === 0;
+            }
+
+            if(selectAll){
+                selectAll.addEventListener('change', function(){
+                    document.querySelectorAll('.select-item').forEach(cb => cb.checked = selectAll.checked);
+                    updateSelectedCount();
+                });
+            }
+
+            document.querySelectorAll('.select-item').forEach(cb => cb.addEventListener('change', updateSelectedCount));
+
+            // Inicializar contador al cargar
+            updateSelectedCount();
+        });
+
+        // CSRF helper (obtener cookie)
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    // Does this cookie string begin with the name we want?
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        // Enviar log de click al servidor (no bloqueante)
+        function sendClickLog(partidaId, termino){
+            try{
+                const csrftoken = getCookie('csrftoken');
+                const formData = new URLSearchParams();
+                if(partidaId) formData.append('partida_id', partidaId);
+                if(termino) formData.append('termino', termino);
+                formData.append('accion','historial_click');
+
+                fetch('{% url "log_click" %}', {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': csrftoken, 'Accept': 'application/json' },
+                    body: formData,
+                    credentials: 'same-origin'
+                }).catch(function(e){
+                    // no hacer nada en caso de error de logging
+                    console.log('log_click error', e);
+                });
+            }catch(e){ console.log('sendClickLog exception', e); }
+        }
+
+        // Adjuntar manejadores a los enlaces del historial para enviar log antes de navegar
+        document.addEventListener('DOMContentLoaded', function(){
+            document.querySelectorAll('.historial-link').forEach(function(a){
+                a.addEventListener('click', function(ev){
+                    const partidaId = a.getAttribute('data-partida-id') || '';
+                    const termino = a.textContent.trim();
+                    sendClickLog(partidaId, termino);
+                    // dejar que el enlace navegue en la misma pestaña
+                });
+            });
+        });
+    </script>
 </div>
 {% endblock %}

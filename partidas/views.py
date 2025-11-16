@@ -1,5 +1,5 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from .models import PartidaArancelaria, Busqueda, Manual, LicenciaTemporal, Rol
+from .models import PartidaArancelaria, Busqueda, Manual, LicenciaTemporal, Rol, PartidaReferencia, HistoriaActividad
 from .forms import CargarExcelForm, PartidaForm, RegistroUsuarioForm
 from .importar_excel import importar_partidas_desde_excel
 from .decorators import rol_requerido
@@ -8,9 +8,70 @@ from django.contrib import messages
 from django.utils.timezone import now
 from django.contrib.auth import login
 from django.db.models import Q
-from datetime import timedelta
+from datetime import timedelta, datetime
 from django.utils.safestring import mark_safe
 import re
+from django.http import HttpResponse, JsonResponse, StreamingHttpResponse
+from django.core.mail import send_mail
+from django.conf import settings
+import csv
+from .decorators import rol_requerido
+from .models import ExportLog
+from .models import ClickLog
+
+from django.core.paginator import Paginator
+from openpyxl import Workbook
+from openpyxl.utils import get_column_letter
+from openpyxl.styles import Alignment, Font, Border, Side
+
+# Cliente de chat: usar Dialogflow si está disponible. Si no, dejar en None para
+# que el fallback local (_generate_local_reply) maneje la respuesta.
+try:
+    from .dialogflow_client import get_chat_response, stream_chat_response
+except Exception:
+    get_chat_response = None
+    stream_chat_response = None
+
+
+def _split_normalize_ace22(full_ace22: str):
+    """Divide el campo ACE22 combinado en (chi, prot) y normaliza valores "vacíos".
+    Considera como vacíos valores muy cortos o marcadores como 'N', 'Y', 'SI', 'NO', '0', '1'.
+    Devuelve tupla (chi, prot) donde cada valor es cadena o '' si no aplicable.
+    """
+    if not full_ace22:
+        return '', ''
+    s = str(full_ace22).strip()
+    sep_candidates = [';', '|', '/', ',', '\\n']
+    split_parts = None
+    for sep in sep_candidates:
+        if sep in s:
+            split_parts = [p.strip() for p in s.split(sep) if p.strip()]
+            break
+    if not split_parts:
+        if '  ' in s:
+            split_parts = [p.strip() for p in s.split('  ') if p.strip()]
+    if not split_parts:
+        parts = [s]
+    else:
+        parts = split_parts
+
+    # normalizar y filtrar valores no informativos
+    # incluir variantes de indicadores no informativos (letras sueltas usadas en algunos Excel/ingresos)
+    bad_set = {'n', 'y', 's', 'si', 'no', '0', '1', 'yes', 'no', 'a'}
+    def clean(val):
+        if not val:
+            return ''
+        v = val.strip()
+        if len(v) <= 1 and v.lower() in bad_set:
+            return ''
+        # también filtrar sí/no abreviados de 2 letras
+        if v.lower() in bad_set:
+            return ''
+        return v
+
+    chi = clean(parts[0]) if len(parts) >= 1 else ''
+    prot = clean(parts[1]) if len(parts) >= 2 else ''
+    return chi, prot
 
 def registro(request):
     if request.method == 'POST':
@@ -28,14 +89,28 @@ def registro(request):
                 usuario.save()
 
                 if not LicenciaTemporal.objects.filter(usuario=usuario).exists():
-                    fecha_inicio = now()
-                    fecha_fin = fecha_inicio + timedelta(days=7)
+                    # usar date (sin hora) para evitar discrepancias de zona/hora al calcular días
+                    from datetime import date as _date
+                    fecha_inicio = _date.today()
+                    # Fecha fin calculada para dar 7 días de vigencia INCLUSIVOS (hoy + 6 días)
+                    fecha_fin = fecha_inicio + timedelta(days=6)
                     LicenciaTemporal.objects.create(
                         usuario=usuario,
                         fecha_inicio=fecha_inicio,
                         fecha_fin=fecha_fin,
                         estado=True
                     )
+                    # enviar email de bienvenida con fecha de vencimiento (si el usuario tiene email)
+                    try:
+                        if usuario.email:
+                            subject = 'Bienvenido a SISARM - licencia temporal activada'
+                            body = f"Hola {usuario.username},\n\nTu licencia temporal ha sido activada hasta el {fecha_fin}. Tendrás acceso completo durante 7 días.\n\nSaludos,\nEquipo SISARM"
+                            from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None)
+                            # si no hay DEFAULT_FROM_EMAIL, send_mail acepta None pero algunos backends lo requieren; intentar con '' si None
+                            send_mail(subject, body, from_email or '', [usuario.email], fail_silently=True)
+                    except Exception:
+                        # no interrumpir el registro si falla el envío de correo
+                        pass
 
                 login(request, usuario)
                 return redirect('inicio')
@@ -50,7 +125,43 @@ def registro(request):
 
 @login_required
 def inicio(request):
-    return render(request, 'partidas/inicio.html')
+    from datetime import date
+    from .models import LicenciaTemporal
+    licencia = LicenciaTemporal.objects.filter(usuario=request.user, estado=True).order_by('-fecha_fin').first()
+    dias_licencia = None
+    fecha_fin_iso = None
+    if licencia:
+        hoy = date.today()
+        raw_days = (licencia.fecha_fin - hoy).days
+        # Mostrar días inclusivos: remaining = raw_days + 1 cuando raw_days >= 0
+        dias_licencia = (raw_days + 1) if raw_days >= 0 else 0
+        # pasar fecha de fin completa en formato ISO para el contador JS
+        fecha_fin_iso = licencia.fecha_fin.isoformat()
+        # notificar al usuario si la licencia vence en pocos días (3 días o menos)
+        try:
+            # mostrar mensajes en la UI (advertir si quedan 1..3 días)
+            if raw_days >= 0 and dias_licencia <= 3:
+                messages.warning(request, f"Tu licencia vence en {dias_licencia} día{'' if dias_licencia==1 else 's'} (hasta {licencia.fecha_fin}). Por favor renueva para evitar interrupciones.")
+                # además, enviar un email una sola vez si no fue enviado aún
+                try:
+                    if not getattr(licencia, 'notified_pre_expiry', False) and request.user.email:
+                        subject = 'Aviso: licencia SISARM próxima a vencer'
+                        body = f"Hola {request.user.username},\n\nTu licencia de SISARM vence el {licencia.fecha_fin} (faltan {dias_licencia} día{'' if dias_licencia==1 else 's'}). Por favor renueva para evitar interrupciones.\n\nSaludos,\nEquipo SISARM"
+                        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None)
+                        send_mail(subject, body, from_email or '', [request.user.email], fail_silently=True)
+                        licencia.notified_pre_expiry = True
+                        licencia.save()
+                except Exception:
+                    pass
+            elif raw_days < 0:
+                # licencia ya expirada
+                messages.error(request, f"Tu licencia expiró el {licencia.fecha_fin}. Algunas funciones pueden estar limitadas.")
+        except Exception:
+            pass
+    return render(request, 'partidas/inicio.html', {
+        'dias_licencia': dias_licencia
+        , 'fecha_fin_iso': fecha_fin_iso
+    })
 
 @login_required
 def buscar_partidas(request):
@@ -74,12 +185,54 @@ def buscar_partidas(request):
         partidas = partidas.filter(entidad_emite__icontains=entidad_emite)
 
     if request.user.is_authenticated and termino:
+        # preparar resumen de resultados: cantidad y hasta 5 códigos como ejemplo
+        try:
+            total_hits = partidas.count()
+            ejemplos = list(partidas.values_list('codigo', flat=True)[:5])
+            ejemplos_txt = ', '.join(ejemplos) if ejemplos else 'sin resultados'
+            resumen = f"{total_hits} resultados; Ej: {ejemplos_txt}"
+        except Exception:
+            # en caso de cualquier problema con el queryset, guardar una nota genérica
+            resumen = 'No disponible'
+
         Busqueda.objects.create(
             usuario=request.user,
             termino_buscado=termino,
             tipo_busqueda="Texto o Código",
-            fecha=now()
+            fecha=now(),
+            resultados=resumen
         )
+        # Actualizar contadores: diario y total acumulado por capítulo
+        from .models import SearchStatisticDaily, SearchStatisticTotal, SearchStatisticProductTotal
+        from datetime import date as _date
+        hoy = _date.today()
+        matches_for_stats = PartidaArancelaria.objects.filter(Q(codigo__icontains=termino) | Q(descripcion__icontains=termino))
+        chapters_seen = set()
+        for m in matches_for_stats:
+            chap = m.capitulo or 'Sin capítulo'
+            if chap in chapters_seen:
+                continue
+            chapters_seen.add(chap)
+            # diario
+            d_obj, _ = SearchStatisticDaily.objects.get_or_create(capitulo=chap, fecha=hoy, defaults={'count': 0})
+            d_obj.count = d_obj.count + 1
+            d_obj.save()
+            # total acumulado
+            t_obj, _ = SearchStatisticTotal.objects.get_or_create(capitulo=chap, defaults={'total': 0})
+            t_obj.total = t_obj.total + 1
+            t_obj.save()
+            # total por producto
+            # usar el código de la partida como identificador único
+            prod_key = m.codigo or f"{m.id}"
+            p_obj, _ = SearchStatisticProductTotal.objects.get_or_create(
+                codigo=prod_key,
+                defaults={'descripcion': m.descripcion, 'capitulo': chap, 'total': 0}
+            )
+            p_obj.total = p_obj.total + 1
+            # mantener la descripción y capítulo actualizados si cambien
+            p_obj.descripcion = m.descripcion
+            p_obj.capitulo = chap
+            p_obj.save()
 
     capitulo_relacionado = partidas.first().capitulo if partidas.exists() else None
     relacionadas = PartidaArancelaria.objects.filter(
@@ -114,7 +267,52 @@ def buscar_partidas(request):
         for s in similares:
             s.descripcion_resaltada = s.descripcion
 
-    capitulos_disponibles = PartidaArancelaria.objects.values_list('capitulo', flat=True).distinct()
+    # Separar ace22_chi_prot en dos atributos para mostrar en la tabla de resultados (ACE22 CHI / ACE22 PROT)
+    try:
+        for p in partidas:
+            full_ace22 = (p.ace22_chi_prot or '').strip()
+            ace22_chi, ace22_prot = _split_normalize_ace22(full_ace22)
+            # asignar atributos dinámicos para la plantilla
+            setattr(p, 'ace22_chi', ace22_chi)
+            setattr(p, 'ace22_prot', ace22_prot)
+    except Exception:
+        # no bloquear la búsqueda si falla la separación; dejar los atributos vacíos
+        pass
+
+    # obtener capítulos distintos y preparar etiquetas limpias para mostrar en el filtro
+    raw_capitulos = list(PartidaArancelaria.objects.values_list('capitulo', flat=True).distinct())
+    def clean_capitulo_label(c):
+        if not c:
+            return None
+        s = str(c).strip()
+        if not s:
+            return None
+        # eliminar prefijos como 'Capitulo 1:', 'Capítulo 1 -', '1 -', '01.' etc.
+        s_clean = re.sub(r'^(capitulo|capículo|capítulo)\s*\d+\s*[:\-\)]?\s*', '', s, flags=re.IGNORECASE)
+        s_clean = re.sub(r'^\d+\s*[:\.\-\)]\s*', '', s_clean)
+        s_clean = s_clean.strip()
+        return s_clean or None
+
+    capitulos_disponibles = []
+    seen = set()
+    for c in raw_capitulos:
+        # ignorar valores vacíos o genéricos
+        if c is None:
+            continue
+        orig = str(c).strip()
+        if not orig or orig.lower() in ('sin datos', 'n/a'):
+            continue
+        if orig in seen:
+            continue
+        seen.add(orig)
+        label = clean_capitulo_label(orig)
+        # intentar extraer número de capítulo (primer entero que aparezca)
+        num_match = re.search(r"(\d+)", orig)
+        numero = int(num_match.group(1)) if num_match else None
+        # si no pudimos limpiar, usar el original
+        if not label:
+            label = orig
+        capitulos_disponibles.append((orig, label, numero))
     gravamenes_disponibles = PartidaArancelaria.objects.values_list('gravamen', flat=True).distinct()
     tipos_disponibles = PartidaArancelaria.objects.values_list('tipo_documento', flat=True).distinct()
     entidades_disponibles = PartidaArancelaria.objects.values_list('entidad_emite', flat=True).distinct()
@@ -137,14 +335,248 @@ def buscar_partidas(request):
         'entidades': entidades_disponibles
     })
 
+
+def api_autocomplete(request):
+    """Endpoint simple de autocompletado usado por la UI.
+    Devuelve JSON con lista de objetos {codigo, descripcion}.
+    Estrategia:
+      1) Buscar por código que empiece por la query (prioridad)
+      2) Luego buscar por código que contenga o descripción que contenga
+      3) Si quedan espacios, intentar búsqueda por tokens en la descripción
+    """
+    q = (request.GET.get('q') or '').strip()
+    if not q:
+        return JsonResponse({'results': []})
+
+    max_results = 15
+    results = []
+
+    try:
+        # Tomar un conjunto amplio de candidatos y puntuar en Python para ordenar por relevancia.
+        # Esto funciona con SQLite (sin pg_trgm).
+        tokens = [t.strip().lower() for t in q.split() if t.strip()]
+        q_lower = q.lower()
+
+        # traer candidatos que contengan la query en código o descripción (limitar a 200 para rendimiento)
+        candidates = PartidaArancelaria.objects.filter(
+            Q(codigo__icontains=q) | Q(descripcion__icontains=q)
+        ).order_by('codigo')[:200]
+
+        scored = []
+        seen = set()
+        for p in candidates:
+            if p.id in seen:
+                continue
+            seen.add(p.id)
+            score = 0
+            codigo = (p.codigo or '').lower()
+            descripcion = (p.descripcion or '').lower()
+
+            # Puntos por tipo de coincidencia (mayor es mejor)
+            if codigo == q_lower:
+                score += 300
+            if codigo.startswith(q_lower):
+                score += 150
+            if q_lower in codigo and not codigo.startswith(q_lower):
+                score += 80
+
+            # coincidencia en descripción
+            if q_lower in descripcion:
+                score += 60
+
+            # tokens: más tokens coincidentes => mejor puntuación
+            token_matches = 0
+            for t in tokens:
+                if t in descripcion:
+                    token_matches += 1
+            score += token_matches * 12
+
+            # bonus por longitud de código (códigos más cortos pueden ser más generales)
+            try:
+                if codigo:
+                    score += max(0, 10 - len(codigo))
+            except Exception:
+                pass
+
+            scored.append((score, p))
+
+        # Ordenar por score descendente y luego por código ascendente
+        scored.sort(key=lambda x: (-x[0], x[1].codigo or ''))
+
+        for score, p in scored[:max_results]:
+            results.append({'codigo': p.codigo, 'descripcion': p.descripcion or ''})
+
+    except Exception as e:
+        try:
+            print('api_autocomplete error:', e)
+        except Exception:
+            pass
+
+    return JsonResponse({'results': results})
+
 @login_required
 def detalle_partida(request, partida_id):
-    partida = get_object_or_404(PartidaArancelaria, id=partida_id)
-    return render(request, 'partidas/detalle_partida.html', {'partida': partida})
+    try:
+        partida = get_object_or_404(PartidaArancelaria, id=partida_id)
+
+        # intentar extraer metadatos simples de la referencia legal (fecha, número, nota corta)
+        referencia_text = partida.referencia_legal or partida.disp_legal or ''
+        referencia_fecha = None
+        referencia_numero = None
+        referencia_nota = None
+        try:
+            # buscar año (ej. 2020) como indicación de fecha
+            m_year = re.search(r"(19|20)\d{2}", referencia_text)
+            if m_year:
+                referencia_fecha = m_year.group(0)
+            # buscar número de resolución (Nº, No., Número)
+            m_num = re.search(r"N[\u00BA\u00AA]?\s*[:\.]?\s*(\d+)|No\.?\s*(\d+)|Número\s*(\d+)", referencia_text, re.IGNORECASE)
+            if m_num:
+                for g in m_num.groups():
+                    if g:
+                        referencia_numero = g
+                        break
+            referencia_nota = referencia_text.strip()[:250]
+        except Exception:
+            referencia_text = referencia_text
+
+        context = {
+            'partida': partida,
+            'referencia_text': referencia_text,
+            'referencia_fecha': referencia_fecha,
+            'referencia_numero': referencia_numero,
+            'referencia_nota': referencia_nota,
+        }
+        # Separar ace22_chi_prot en dos valores para mostrar en la plantilla
+        full_ace22 = (partida.ace22_chi_prot or '').strip()
+        ace22_chi, ace22_prot = _split_normalize_ace22(full_ace22)
+        context['ace22_chi'] = ace22_chi
+        context['ace22_prot'] = ace22_prot
+        # adjuntar referencias/documentos asociados (si los hay)
+        referencias = PartidaReferencia.objects.filter(partida=partida).order_by('-creado_en')
+        context['referencias'] = referencias
+
+        # Exportar PDF cuando se pide via ?export=pdf
+        if request.GET.get('export') == 'pdf':
+            try:
+                from reportlab.lib.pagesizes import letter
+                from reportlab.pdfgen import canvas
+                from io import BytesIO
+
+                buffer = BytesIO()
+                c = canvas.Canvas(buffer, pagesize=letter)
+                width, height = letter
+
+                title = f"Partida {partida.codigo} - SISARM Search"
+                c.setFont('Helvetica-Bold', 14)
+                c.drawString(40, height - 60, title)
+
+                c.setFont('Helvetica', 11)
+                y = height - 90
+                lines = [
+                    ("Código:", partida.codigo or ""),
+                    ("Partida:", partida.partida or ""),
+                    ("Descripción:", (partida.descripcion or "").replace('\n', ' ')),
+                    ("Gravamen:", partida.gravamen or ""),
+                    ("ICE / IEHD:", partida.ice_iehd or ""),
+                    ("Unidad de Medida:", partida.unidad_medida or ""),
+                    ("Despacho Frontera:", partida.despacho_frontera or ""),
+                    ("Tipo Documento:", partida.tipo_documento or ""),
+                    ("Entidad que Emite:", partida.entidad_emite or ""),
+                    ("Disposición Legal (resumen):", (partida.disp_legal or '')[:400]),
+                    ("Capítulo:", partida.capitulo or ""),
+                ]
+
+                for label, val in lines:
+                    text = f"{label} {val}"
+                    max_chars = 95
+                    while text:
+                        part = text[:max_chars]
+                        c.drawString(40, y, part)
+                        y -= 14
+                        text = text[max_chars:]
+                        if y < 80:
+                            c.showPage()
+                            c.setFont('Helvetica', 11)
+                            y = height - 60
+
+                if referencias:
+                    if y < 100:
+                        c.showPage()
+                        c.setFont('Helvetica', 11)
+                        y = height - 60
+                    c.setFont('Helvetica-Bold', 12)
+                    c.drawString(40, y, "Referencias / Documentos asociados:")
+                    y -= 18
+                    c.setFont('Helvetica', 10)
+                    for ref in referencias:
+                        ref_line = f"- {ref.titulo or ref.numero_resolucion or 'Referencia'} ({ref.fecha_norma or ''})"
+                        text = ref_line
+                        max_chars = 95
+                        while text:
+                            part = text[:max_chars]
+                            c.drawString(44, y, part)
+                            y -= 12
+                            text = text[max_chars:]
+                            if y < 60:
+                                c.showPage()
+                                c.setFont('Helvetica', 10)
+                                y = height - 60
+
+                c.showPage()
+                c.save()
+                pdf = buffer.getvalue()
+                buffer.close()
+
+                response = HttpResponse(content_type='application/pdf')
+                filename = f"partida_{partida.codigo or partida.id}.pdf"
+                response['Content-Disposition'] = f'attachment; filename="{filename}"'
+                response.write(pdf)
+                return response
+            except Exception:
+                try:
+                    print('PDF export error while generating PDF for detalle_partida')
+                except Exception:
+                    pass
+
+        return render(request, 'partidas/detalle_partida.html', context)
+    except Exception as e:
+        # devolver un mensaje claro a la plantilla si ocurre un error
+        try:
+            msg = f"Error al cargar los datos de la partida: {str(e)}"
+        except Exception:
+            msg = 'Error al cargar los datos de la partida.'
+        return render(request, 'partidas/detalle_partida.html', {'load_error': msg})
 
 @login_required
 def historial_buscador(request):
-    historial = Busqueda.objects.filter(usuario=request.user).order_by('-fecha')[:20]
+    # Manejar eliminación vía POST
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'delete_selected':
+            ids = request.POST.getlist('selected')
+            if ids:
+                Busqueda.objects.filter(usuario=request.user, id__in=ids).delete()
+        elif action == 'delete_all':
+            Busqueda.objects.filter(usuario=request.user).delete()
+        return redirect('historial_buscador')
+
+    # Obtener últimas 20 búsquedas del usuario y buscar partidas relacionadas para cada término
+    historial_qs = Busqueda.objects.filter(usuario=request.user).order_by('-fecha')[:20]
+    historial = []
+    for b in historial_qs:
+        matches = PartidaArancelaria.objects.filter(
+            Q(codigo__icontains=b.termino_buscado) | Q(descripcion__icontains=b.termino_buscado)
+        ).order_by('codigo')[:15]
+        # Normalizar ACE22 para cada partida en matches (para mostrar columnas separadas en plantilla)
+        try:
+            for p in matches:
+                chi, prot = _split_normalize_ace22(p.ace22_chi_prot or '')
+                setattr(p, 'ace22_chi', chi)
+                setattr(p, 'ace22_prot', prot)
+        except Exception:
+            pass
+        historial.append({'item': b, 'matches': matches})
     return render(request, 'partidas/historial.html', {'historial': historial})
 
 @login_required
@@ -168,190 +600,308 @@ def panel_partidas(request):
 
 @login_required
 def ver_manuales(request):
-    manuales = Manual.objects.all()
-    return render(request, 'partidas/manuales.html', {'manuales': manuales})
+    # Soporta búsqueda por palabra clave (q) sobre tipo y descripción
+    q = (request.GET.get('q') or '').strip()
+    manuales_qs = Manual.objects.all().order_by('-updated_at', 'tipo')
+    if q:
+        manuales_qs = manuales_qs.filter(Q(tipo__icontains=q) | Q(descripcion__icontains=q))
+
+    # Agrupar por tipo (módulo) para navegación más intuitiva
+    manuals_by_type = {}
+    manual_usuario = Manual.objects.filter(tipo__iexact='manual de usuario').first()
+    for m in manuales_qs:
+        # excluir la 'Guía del Buscador' del listado principal (se muestra por separado)
+        if (m.tipo or '').strip().lower() == 'guía del buscador' or (m.tipo or '').strip().lower() == 'guia del buscador':
+            continue
+        key = m.tipo or 'General'
+        manuals_by_type.setdefault(key, []).append(m)
+
+    return render(request, 'partidas/manuales.html', {
+        'manuales': manuales_qs,
+        'manuales_por_tipo': manuals_by_type,
+        'q': q
+    })
+
+
+@login_required
+def guia_buscador_html(request):
+    """Vista ligera que muestra la Guía del Buscador en HTML (más accesible que el PDF)."""
+    return render(request, 'partidas/manuales_guia_buscador.html', {})
+
+
+@login_required
+def descargar_manual_usuario(request):
+    """Genera y devuelve un PDF del Manual de Usuario (versión imprimible).
+    Construye un PDF sencillo a partir de texto estructurado usando ReportLab y lo devuelve como attachment.
+    """
+    try:
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.enums import TA_LEFT
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+        from reportlab.lib.units import mm
+        from io import BytesIO
+    except Exception:
+        return HttpResponse('Generación de PDF no disponible: falta la librería reportlab.', status=500)
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=20*mm, rightMargin=20*mm, topMargin=20*mm, bottomMargin=20*mm)
+    styles = getSampleStyleSheet()
+    h1 = styles['Heading1']
+    h2 = styles['Heading2']
+    normal = styles['BodyText']
+    normal.alignment = TA_LEFT
+
+    story = []
+    story.append(Paragraph('Manual de Usuario — SISARM Search', h1))
+    story.append(Spacer(1, 6))
+
+    # Secciones breves (coinciden con la versión HTML)
+    story.append(Paragraph('Sección A — Inicio y configuración de la cuenta', h2))
+    story.append(Paragraph('1. Crear cuenta: ve a Crear nueva cuenta y completa nombre, apellido, correo, usuario y contraseña.', normal))
+    story.append(Paragraph('2. Inicio de sesión: usa tus credenciales en Iniciar sesión. Si olvidas la contraseña usa recuperación en el formulario de login.', normal))
+    story.append(Paragraph('3. Perfil: desde la esquina superior, revisa tu correo y datos. Mantén el correo actualizado para notificaciones.', normal))
+    story.append(Spacer(1, 6))
+
+    story.append(Paragraph('Sección B — Buscar partidas (flujo básico)', h2))
+    story.append(Paragraph('1. En el menú principal selecciona Buscar Partidas.', normal))
+    story.append(Paragraph('2. Escribe el código completo (ej. 010121) o una palabra clave de la descripción.', normal))
+    story.append(Paragraph('3. Pulsa Buscar. Los resultados se muestran con columnas esenciales (Código, Descripción, Gravamen).', normal))
+    story.append(Paragraph('4. Si necesitas precisión, haz clic sobre el resultado para abrir la Ficha de detalle.', normal))
+    story.append(Spacer(1, 6))
+
+    story.append(Paragraph('Sección C — Uso de filtros (mejorar resultados)', h2))
+    story.append(Paragraph('• Capítulo: selecciona el capítulo para limitar familias de productos (ej. Capítulo 1).', normal))
+    story.append(Paragraph('• Gravamen / Impuestos: filtra por texto que aparezca en el campo gravamen.', normal))
+    story.append(Paragraph('• Entidad que emite: filtra por la entidad (Ministerio, Instituto, etc.).', normal))
+    story.append(Spacer(1, 6))
+
+    story.append(Paragraph('Sección D — Ficha de detalle de una partida', h2))
+    story.append(Paragraph('• En la ficha verás: código completo, descripción amplia y campos adicionales (gravamen, ICE/IEHD, documentos requeridos y entidad emisora).', normal))
+    story.append(Paragraph("• ACE22: el sistema muestra ACE22 dividido en CHI y PROT cuando existe; si no hay dato mostrará 'N/A'.", normal))
+    story.append(Paragraph('• Documentos: revisa la lista de referencias y usa «Solicitar ayuda» si falta un documento.', normal))
+    story.append(Spacer(1, 6))
+
+    story.append(Paragraph('Sección E — Historial y exportaciones', h2))
+    story.append(Paragraph('• Historial: guarda búsquedas recientes con fecha; útil para repetir consultas.', normal))
+    story.append(Paragraph('• Exportar a Excel: los administradores pueden exportar resultados (archivo con columnas claramente separadas y formato listo para análisis).', normal))
+    story.append(Spacer(1, 6))
+
+    story.append(Paragraph('Sección F — Licencias y acceso', h2))
+    story.append(Paragraph('• Las cuentas de prueba reciben licencia temporal de 7 días (incluyentes).', normal))
+    story.append(Paragraph('• Revisa el panel de inicio para ver días restantes; el contador es inclusivo y se actualiza cada minuto.', normal))
+    story.append(Spacer(1, 6))
+
+    story.append(Paragraph('Sección G — Soporte y ayuda', h2))
+    story.append(Paragraph('• Asistente: usa Chat de Ayuda para preguntas rápidas (licencia, filtros, soporte).', normal))
+    story.append(Paragraph('• Soporte: abre el formulario de Soporte desde el menú y adjunta capturas o ejemplos.', normal))
+
+    # Construir PDF
+    try:
+        doc.build(story)
+    except Exception as e:
+        return HttpResponse(f'Error al generar PDF: {e}', status=500)
+
+    buffer.seek(0)
+    response = HttpResponse(buffer.read(), content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="manual_usuario_sisarm.pdf"'
+    return response
+
+
+def lista_aranceles(request):
+    """Índice de capítulos disponibles."""
+    capitulos_qs = PartidaArancelaria.objects.values_list('capitulo', flat=True).distinct().order_by('capitulo')
+    capitulos = []
+    for c in capitulos_qs:
+        capitulos.append({'capitulo': c, 'count': PartidaArancelaria.objects.filter(capitulo=c).count()})
+    return render(request, 'partidas/lista_aranceles.html', {'capitulos': capitulos})
+
+
+@login_required
+@rol_requerido('Administrador')
+def exportar_partidas_excel(request):
+    """Exporta partidas a Excel (.xlsx) con las columnas mostradas en la imagen del usuario.
+    Acepta filtros GET similares a la búsqueda: termino, capitulo, gravamen, tipo_documento, entidad_emite
+    """
+    qs = PartidaArancelaria.objects.all().order_by('codigo')
+
+    termino = request.GET.get('termino', '').strip()
+    capitulo = request.GET.get('capitulo', '').strip()
+    gravamen = request.GET.get('gravamen', '').strip()
+    tipo_documento = request.GET.get('tipo_documento', '').strip()
+    entidad_emite = request.GET.get('entidad_emite', '').strip()
+
+    if termino:
+        qs = qs.filter(Q(codigo__icontains=termino) | Q(descripcion__icontains=termino))
+    if capitulo:
+        qs = qs.filter(capitulo__icontains=capitulo)
+    if gravamen:
+        qs = qs.filter(gravamen__icontains=gravamen)
+    if tipo_documento:
+        qs = qs.filter(tipo_documento__icontains=tipo_documento)
+    if entidad_emite:
+        qs = qs.filter(entidad_emite__icontains=entidad_emite)
+
+    # Registrar la exportación
+    filtros = {'termino': termino, 'capitulo': capitulo, 'gravamen': gravamen, 'tipo_documento': tipo_documento, 'entidad_emite': entidad_emite}
+    try:
+        ExportLog.objects.create(usuario=request.user, accion='export_partidas_xlsx', filtros=str(filtros))
+    except Exception:
+        pass
+
+    # Crear workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Partidas'
+
+    headers = [
+        'capitulo', 'partida', 'codigo', 'descripcion de la mercancia', 'gravamen',
+        'ice - iehd', 'unidad de medida', 'despacho en frontera', 'tipo de documento',
+        'entidad que emite', 'disposicion legal', 'can ace36 ace47 ven', 'ace22_chi_prot', 'ace66_mexico'
+    ]
+
+    thin = Side(border_style="thin", color="000000")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+    # Escribir cabecera con estilo
+    for col_idx, header in enumerate(headers, start=1):
+        cell = ws.cell(row=1, column=col_idx, value=header)
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        cell.border = border
+
+    # Ajustar: exportar ACE22 en dos columnas separadas (CHI / PROT)
+    headers = [
+        'capitulo', 'partida', 'codigo', 'descripcion de la mercancia', 'gravamen',
+        'ice - iehd', 'unidad de medida', 'despacho en frontera', 'tipo de documento',
+        'entidad que emite', 'disposicion legal', 'can ace36 ace47 ven', 'ace22_chi', 'ace22_prot', 'ace66_mexico'
+    ]
+
+    # reescribir cabecera (sobrescribir previamente escrita si es necesario)
+    for col_idx, header in enumerate(headers, start=1):
+        cell = ws.cell(row=1, column=col_idx, value=header)
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        cell.border = border
+
+    # Rellenar filas
+    row = 2
+    for p in qs.iterator():
+        # intentar separar el campo combinado ace22_chi_prot en dos columnas
+        full_ace22 = (p.ace22_chi_prot or '').strip()
+        ace22_chi, ace22_prot = _split_normalize_ace22(full_ace22)
+
+        # Si están vacíos después de normalizar, dejar 'N/A' para mayor claridad en el Excel
+        ace22_chi_val = ace22_chi if ace22_chi else 'N/A'
+        ace22_prot_val = ace22_prot if ace22_prot else 'N/A'
+
+        # Valores en el orden pedido: Capítulo primero, luego Partida, Código, ... y ACE22 combinado
+        values = [
+            p.capitulo or '',
+            p.partida or '',
+            p.codigo or '',
+            (p.descripcion or '').replace('\r', ' ').replace('\n', ' '),
+            p.gravamen or '',
+            p.ice_iehd or '',
+            p.unidad_medida or '',
+            p.despacho_frontera or '',
+            p.tipo_documento or '',
+            p.entidad_emite or '',
+            p.disp_legal or '',
+            p.can_ace36_ace47_ven or '',
+            ace22_chi_val,
+            ace22_prot_val,
+            p.ace66_mexico or ''
+        ]
+        for col_idx, val in enumerate(values, start=1):
+            cell = ws.cell(row=row, column=col_idx, value=val)
+            # ajustar alineación para columnas largas
+            if col_idx in (4, 11):
+                cell.alignment = Alignment(wrap_text=True, vertical='top')
+            else:
+                cell.alignment = Alignment(vertical='top')
+            cell.border = border
+        row += 1
+
+    # Ajustar anchos de columna básicos
+    for i, header in enumerate(headers, start=1):
+        col_letter = get_column_letter(i)
+        # descripción (ahora columna 4) y disposición legal (columna 11) son largas
+        if i == 4 or i == 11:
+            ws.column_dimensions[col_letter].width = 80
+        elif i == 3:
+            ws.column_dimensions[col_letter].width = 20
+        else:
+            ws.column_dimensions[col_letter].width = 16
+
+    # Guardar en un BytesIO y retornar response
+    from io import BytesIO
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    filename = 'partidas_export.xlsx'
+    response = HttpResponse(output.read(), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
+
+
+def aranceles_por_capitulo(request, capitulo):
+    qs = PartidaArancelaria.objects.filter(capitulo=capitulo).order_by('codigo')
+    return render(request, 'partidas/aranceles_por_capitulo.html', {'capitulo': capitulo, 'aranceles': qs})
 
 def chat_asistente(request):
-    mensaje = request.GET.get('mensaje', '').lower().strip()
-    respuesta = ""
-    sugerencias = []
+    # conservar el texto original para mostrarlo en la plantilla
+    original_mensaje = request.GET.get('mensaje', '').strip()
+    mensaje = original_mensaje.lower()
+    # timestamp para la respuesta (se mostrará en la plantilla)
+    from django.utils import timezone
+    respuesta_tiempo = timezone.localtime(timezone.now()).strftime('%d/%m/%Y %H:%M')
 
-    if not mensaje:
-        respuesta = "¡Hola! ¿En qué puedo ayudarte?"
-        sugerencias = ["Buscar partida", "Ver manuales", "Mi licencia", "Contactar soporte"]
-
-    elif mensaje in ["hola", "buenas", "buenos días", "buenas tardes", "buenas noches"]:
-        respuesta = "¡Hola! ¿Cómo puedo ayudarte hoy?"
-        sugerencias = ["¿Cómo buscar partidas?", "¿Dónde están los manuales?", "¿Qué es la licencia?"]
-
-    elif mensaje in ["gracias", "muchas gracias", "ok", "entiendo"]:
-        respuesta = "¡De nada! Estoy aquí para ayudarte si necesitas algo más."
-        sugerencias = ["Buscar partida", "Mi licencia", "Soporte"]
-
-    elif mensaje in ["adiós", "chau", "hasta luego"]:
-        respuesta = "¡Hasta pronto! Si necesitas más ayuda, aquí estaré."
-        sugerencias = []
-
-    elif "qué es una subpartida" in mensaje or mensaje == "subpartida":
-        respuesta = (
-            "Una subpartida es una subdivisión dentro de una partida arancelaria que permite clasificar el producto con mayor detalle."
-        )
-        sugerencias = ["¿Qué significa ICE/IEHD?", "¿Dónde veo los documentos requeridos?"]
-
-    elif "dónde veo los documentos" in mensaje or "ver documentos requeridos" in mensaje:
-        respuesta = (
-            "Puedes ver los requisitos y documentos exigidos haciendo clic en una partida desde el buscador.<br>"
-            "Ahí verás el tipo de documento, entidad emisora y disposición legal correspondiente."
-        )
-        sugerencias = ["Buscar partida", "¿Qué entidad emite el permiso?"]
-
-    elif "qué entidad emite el permiso" in mensaje:
-        respuesta = (
-            "La entidad que emite el permiso está especificada dentro del detalle de cada partida arancelaria.<br>"
-            "Puedes consultarla al hacer clic sobre una partida en los resultados de búsqueda."
-        )
-        sugerencias = ["Buscar partida", "¿Dónde veo los documentos requeridos?"]
-
-    elif "tienen soporte" in mensaje or "hay soporte" in mensaje or "disponen de soporte" in mensaje:
-        respuesta = (
-            "¡Sí! Contamos con soporte técnico para ayudarte.<br>"
-            "Haz clic en el botón <strong>Soporte</strong> del menú o directamente desde <a href='/soporte' class='btn btn-sm btn-success'>aquí</a>."
-        )
-        sugerencias = ["¿Atienden por WhatsApp?", "¿Cuánto tardan en responder?"]
-
-    elif "cuánto tardan en responder" in mensaje:
-        respuesta = (
-            "El tiempo de respuesta del soporte puede variar, pero normalmente respondemos en menos de 24 horas hábiles.<br>"
-            "También puedes escribir directamente a soporte@sisarm.com."
-        )
-        sugerencias = ["¿Puedo escribir por WhatsApp?", "Contactar soporte"]
-
-    elif "ice" in mensaje or "iehd" in mensaje:
-        respuesta = (
-            "ICE es el Impuesto al Consumo Específico y IEHD es el Impuesto Especial a los Hidrocarburos y Derivados.<br>"
-            "Se aplican a productos como bebidas, tabacos y combustibles según la normativa."
-        )
-        sugerencias = ["¿Dónde se ve ese impuesto?", "¿A qué partidas aplica?"]
-
-    elif "requisitos de una partida" in mensaje or "documentos de una partida" in mensaje:
-        respuesta = (
-            "Puedes ver los requisitos y documentos exigidos haciendo clic en una partida desde el buscador.<br>"
-            "Ahí verás el tipo de documento, entidad emisora y disposición legal correspondiente."
-        )
-        sugerencias = ["Buscar partida", "¿Qué entidad emite el permiso?"]
-
-    elif "capítulo arancelario" in mensaje or "qué es un capítulo" in mensaje:
-        respuesta = (
-            "Un capítulo arancelario agrupa productos similares bajo un mismo código base.<br>"
-            "Por ejemplo, el Capítulo 01 incluye animales vivos, el 02 carnes, etc."
-        )
-        sugerencias = ["Buscar partida", "Filtrar por capítulo"]
-
-    elif "qué es una partida" in mensaje or "partida arancelaria" in mensaje:
-        respuesta = (
-            "Una partida arancelaria es un código que clasifica un tipo de producto en el comercio internacional.<br>"
-            "Define impuestos, permisos y requisitos para su importación o exportación."
-        )
-        sugerencias = ["¿Qué es una subpartida?", "¿Cómo buscar una partida?"]
-
-    elif "buscar" in mensaje or mensaje == "buscar partida":
-        respuesta = (
-            "Para buscar una partida arancelaria:<br>"
-            "• Haz clic en <strong>Buscar Partidas</strong> desde el menú principal.<br>"
-            "• Escribe el código o la descripción.<br>"
-            "• Usa filtros como capítulo, gravamen o entidad emisora."
-        )
-        sugerencias = ["¿Qué es una partida?", "¿Cómo usar filtros avanzados?"]
-
-    elif "filtro" in mensaje:
-        respuesta = (
-            "En el buscador puedes usar filtros como:<br>"
-            "• <strong>Capítulo</strong><br>"
-            "• <strong>Gravamen</strong><br>"
-            "• <strong>Entidad que emite</strong><br>"
-            "• <strong>Tipo de documento</strong>"
-        )
-        sugerencias = ["¿Qué filtro me conviene usar?", "¿Qué es un capítulo arancelario?"]
-
-    elif "licencia" in mensaje or "caduca" in mensaje or mensaje == "mi licencia":
-        respuesta = (
-            "Tu licencia temporal dura 7 días desde el registro.<br>"
-            "Te da acceso completo al sistema. Si expira, debes contactar al administrador para renovarla."
-        )
-        sugerencias = ["¿Qué es la licencia?", "¿Cómo renovarla?"]
-
-    elif "qué es la licencia" in mensaje:
-        respuesta = (
-            "Es un permiso de uso que habilita tu acceso al sistema durante un periodo de tiempo determinado (7 días en cuentas nuevas)."
-        )
-        sugerencias = ["¿Está activa mi licencia?", "¿Qué pasa si caduca?"]
-
-    elif "manual buscador" in mensaje or "manual del buscador" in mensaje:
-        respuesta = (
-            "Puedes revisar el manual llamado <strong>Guía del Buscador</strong> en la sección de manuales.<br>"
-            "Ahí se explica cómo hacer búsquedas por texto, código y filtros."
-        )
-        sugerencias = ["Ver manuales", "Buscar partida"]
-
-    elif "manual administrador" in mensaje or "manual para admin" in mensaje:
-        respuesta = (
-            "Sí, hay manuales específicos para administradores. Explican cómo importar archivos Excel, gestionar partidas y usuarios."
-        )
-        sugerencias = ["Ver manuales", "¿Cómo importar partidas?"]
-
-    elif "manual" in mensaje or mensaje == "ver manuales":
-        respuesta = (
-            "Los manuales están en la sección <strong>Manuales</strong> del menú principal.<br>"
-        )
-        sugerencias = ["¿Qué manual explica el buscador?", "¿Hay manuales para administradores?"]
-
-    elif "registro" in mensaje or "crear cuenta" in mensaje:
-        respuesta = (
-            "Puedes crear una cuenta desde la pantalla principal en <strong>Crear cuenta</strong>.<br>"
-            "Necesitarás un nombre de usuario, correo electrónico."
-        )
-        sugerencias = ["¿Qué datos necesito?", "¿Puedo registrarme sin correo?"]
-
-    elif "qué datos necesito" in mensaje or "datos para registrarme" in mensaje:
-        respuesta = (
-            "Se solicita nombre, apellido, correo electrónico, nombre de usuario y contraseña."
-        )
-        sugerencias = ["Crear cuenta", "¿Puedo registrarme sin correo?"]
-
-    elif "registrarme sin correo" in mensaje:
-        respuesta = (
-            "No. Actualmente necesitas un correo válido para crear una cuenta y recibir notificaciones importantes."
-        )
-        sugerencias = ["Crear cuenta", "¿Qué datos necesito?"]
-
-    elif "error" in mensaje or "problema" in mensaje or "no puedo" in mensaje:
-        respuesta = (
-            "¿Tienes un problema? Aquí algunas recomendaciones:<br>"
-            "• Verifica usuario y contraseña.<br>"
-            "• Asegúrate de que tu licencia esté activa.<br>"
-            "• Recarga la página o prueba en otro navegador."
-        )
-        sugerencias = ["Mi licencia está vencida", "No encuentro partidas", "No puedo iniciar sesión"]
-
-    elif "soporte" in mensaje or "contactar" in mensaje or "ayuda" in mensaje or mensaje == "contactar soporte":
-        respuesta = (
-            "Puedes contactar soporte:<br>"
-            "• Botón <strong>Soporte</strong> en el menú principal<br>"
-            "<a href='/soporte' class='btn btn-sm btn-success'>Ir a soporte</a>"
-        )
-        sugerencias = ["¿Atienden por WhatsApp?", "¿Cuánto tardan en responder?"]
-
-    else:
-        respuesta = (
-            "No entendí tu consulta, pero puedo ayudarte con lo siguiente:"
-        )
-        sugerencias = ["Buscar partida", "Ver manuales", "Mi licencia", "Contactar soporte"]
+    # delegar la lógica de generación local a una función reutilizable
+    respuesta, sugerencias, action = _generate_local_reply(mensaje, request)
 
     context = {
-        "mensaje": mensaje,
+        # mostrar el mensaje original enviado por el usuario en la plantilla
+        "mensaje": original_mensaje,
         "respuesta": respuesta,
         "sugerencias": sugerencias
     }
+    # Si el frontend pide abrir soporte vía query param, preparar la acción
+    # (permite enlaces desde emails que abran el chat y muestren la burbuja/modal de Soporte)
+    open_support_q = request.GET.get('open_support') or request.GET.get('action')
+    if open_support_q and str(open_support_q).lower() in ('1', 'true', 'yes', 'open_support'):
+        # pasar parametros prefill si vienen en GET (email, prefill_subject, prefill_message)
+        action = {'open_support': '/soporte/', 'action_text': 'Abrir la página de Soporte.'}
+        # solicitar apertura automática cuando el enlace viene con open_support
+        action['auto_open'] = True
+        email_prefill = request.GET.get('email')
+        subj_prefill = request.GET.get('prefill_subject')
+        msg_prefill = request.GET.get('prefill_message')
+        if email_prefill:
+            action['email'] = email_prefill
+        if subj_prefill:
+            action['prefill_subject'] = subj_prefill
+        if msg_prefill:
+            action['prefill_message'] = msg_prefill
+    # acción opcional que la plantilla puede ejecutar en el cliente (abrir soporte, whatsapp, etc.)
+    import json
+    # enriquecer la action con un texto legible para la UI (action_text)
+    action_payload = None
+    if action and isinstance(action, dict):
+        action_payload = dict(action)
+        # si el backend no incluyó una descripción, generarla aquí
+        if 'action_text' not in action_payload:
+            if 'open_support' in action_payload:
+                action_payload['action_text'] = 'Abrir la página de Soporte.'
+            elif 'open_whatsapp' in action_payload:
+                action_payload['action_text'] = 'Abrir WhatsApp para contactar al soporte.'
+            else:
+                action_payload['action_text'] = 'Abrir recurso sugerido.'
+
+    context["action_json"] = json.dumps(action_payload) if action_payload else 'null'
+    # incluir timestamp para mostrar cuándo se generó la respuesta
+    context["respuesta_tiempo"] = respuesta_tiempo
     return render(request, 'partidas/chat.html', context)
 
 def licencia_expirada(request):
@@ -362,3 +912,818 @@ from django.shortcuts import render
 @login_required
 def soporte(request):
     return render(request, 'partidas/soporte.html')
+
+
+@login_required
+def soporte_submit(request):
+    """Recibe POST desde el formulario de Soporte y lo envía por email al equipo de soporte.
+    Guarda también una entrada en HistoriaActividad.
+    """
+    from django.core.mail import send_mail
+    from django.shortcuts import redirect
+    from django.contrib import messages
+    subject = request.POST.get('subject', '').strip()
+    message = request.POST.get('message', '').strip()
+    email_from = request.POST.get('email') or (request.user.email if request.user.is_authenticated else '')
+    if not email_from:
+        messages.error(request, 'Debes indicar un correo de contacto.')
+        return redirect('soporte')
+    if not message:
+        messages.error(request, 'El mensaje no puede estar vacío.')
+        return redirect('soporte')
+
+    # Construir cuerpo con datos de contacto
+    full_body = f"Solicitud de soporte desde {email_from}\n\n{message}"
+    try:
+        # enviar al equipo de soporte; ajustar en settings si es necesario
+        support_to = getattr(settings, 'SUPPORT_EMAIL', 'soporte@sisarm.com')
+        send_mail(subject or 'Solicitud de soporte desde la aplicación', full_body, email_from, [support_to], fail_silently=False)
+        # registrar actividad
+        try:
+            HistoriaActividad.objects.create(usuario=request.user if request.user.is_authenticated else None, accion=f"soporte_submit: {subject[:200]}")
+        except Exception:
+            pass
+        messages.success(request, 'Solicitud enviada al equipo de soporte. Gracias.')
+    except Exception as e:
+        messages.error(request, f'Error al enviar la solicitud: {str(e)}')
+
+    return redirect('soporte')
+
+
+# función local que genera la respuesta del asistente sin depender de Dialogflow/OpenAI
+def _generate_local_reply(mensaje: str, request):
+    """Genera una respuesta corta usando reglas locales. Devuelve (respuesta, sugerencias, action).
+    action es un diccionario opcional con instrucciones que el cliente puede ejecutar, por ejemplo:
+      {'open_support': '/soporte/'} o {'open_whatsapp': 'https://wa.me/...'}
+    """
+    respuesta = ""
+    sugerencias = []
+    action = None
+    # normalizar: sin acentos, en minúsculas y sin espacios extremos
+    import unicodedata
+    raw = (mensaje or '')
+    m = raw.strip().lower()
+    # eliminar acentos para mejorar matching
+    try:
+        m = ''.join(c for c in unicodedata.normalize('NFKD', m) if not unicodedata.combining(c))
+    except Exception:
+        pass
+    # correcciones simples de typos comunes
+    corrections = {
+        'ola': 'hola',
+        'ta bien': 'esta bien',
+        'esta bien': 'esta bien',
+        'gracais': 'gracias'
+    }
+    if m in corrections:
+        m = corrections[m]
+
+    # Si el usuario responde afirmativamente y hay una acción sugerida en sesión, ejecutarla
+    try:
+        affirmatives = {'si', 'sí', 's', 'ok', 'vale', 'dale', 'claro'}
+        if m in affirmatives:
+            last_action = None
+            try:
+                last_action = request.session.pop('chat_last_action')
+            except Exception:
+                last_action = None
+            if last_action:
+                respuesta = 'Abriendo la página solicitada...'
+                sugerencias = []
+                action = last_action
+                return respuesta, sugerencias, action
+    except Exception:
+        # si falla cualquier manejo de sesión, continuar normalmente
+        pass
+
+    # intent recognition: preguntas frecuentes y variantes
+    # Mejores patrones para detectar WhatsApp, filtros y consultas sobre impuestos
+    if 'whatsapp' in m or 'atienden por whatsapp' in m or 'whats' in m:
+        # Respuesta mejorada: indicar si hay atención por WhatsApp y ofrecer abrir la conversación
+        # Leer número y texto desde settings si están definidos para personalizar
+        try:
+            wa_number = getattr(settings, 'SUPPORT_WHATSAPP_NUMBER', '59177682918')
+            wa_text = getattr(settings, 'SUPPORT_WHATSAPP_TEXT', 'Hola, necesito ayuda con SISARM Search.')
+        except Exception:
+            wa_number = '59177682918'
+            wa_text = 'Hola, necesito ayuda con SISARM Search.'
+        try:
+            from urllib.parse import quote
+            wa_link = f'https://wa.me/{wa_number}?text={quote(wa_text)}'
+        except Exception:
+            wa_link = f'https://wa.me/{wa_number}'
+        respuesta = (
+            "Actualmente el canal principal de soporte es el formulario del sistema y el correo <strong>soporte@sisarm.com</strong>. "
+            "Si prefieres WhatsApp, puedes abrir la conversación con nuestro número haciendo clic en el enlace o te lo puedo abrir ahora."
+            f" <br><br><a href=\"{wa_link}\" target=\"_blank\" class=\"btn btn-success\">Abrir WhatsApp</a>"
+        )
+        sugerencias = ["Contactar soporte", "Ver manuales"]
+        # ofrecer que el cliente abra WhatsApp automáticamente
+        action = {'open_whatsapp': wa_link, 'action_text': f'Abrir WhatsApp ({wa_number})'}
+        return respuesta, sugerencias, action
+
+    if 'donde' in m or 'dónde' in m or 'donde se ve' in m or 'dónde se ve' in m or 'donde veo' in m or 'dónde veo' in m:
+        # preguntas sobre dónde ver impuestos o gravámenes
+        if 'gravamen' in m or 'impuesto' in m or 'ice' in m or 'iehd' in m:
+            respuesta = (
+                "En la ficha de cada partida (detalle de partida) verás los campos relacionados con gravámenes e impuestos: 'gravamen' muestra el valor o texto del impuesto aplicable; si corresponde, también aparece la etiqueta ICE/IEHD en el campo 'ice_iehd'."
+                " Busca la partida desde 'Buscar Partidas' y haz clic en el resultado para ver esos campos en su detalle."
+            )
+            sugerencias = ["Buscar partida", "Ver detalle de partida"]
+            return respuesta, sugerencias
+
+    # preguntas sobre filtros
+    if 'filtro' in m or 'filtrar' in m or 'filtros' in m or 'capítulo' in m and 'fil' in m:
+        respuesta = (
+            "Para acotar resultados utiliza los filtros disponibles en la pantalla de búsqueda:\n"
+            "• Capítulo: selecciona la familia de productos (ej. 01, 02…).\n"
+            "• Gravamen: filtra por el texto o valor del impuesto mostrado en la partida.\n"
+            "• Entidad: filtra por la entidad emisora (Ministerio, Instituto, etc.).\n"
+            "Aplica uno o varios filtros simultáneamente para reducir la lista de resultados."
+        )
+        sugerencias = ["Buscar partida", "Filtrar por capítulo"]
+        return respuesta, sugerencias
+
+    if not m:
+        respuesta = "¡Hola! Soy el Asistente de SISARM. Puedo ayudarte a buscar partidas, ver manuales o revisar tu licencia. ¿Qué necesitas hacer?"
+        sugerencias = ["Buscar partida", "Ver manuales", "Mi licencia", "Contactar soporte"]
+
+    elif m in ["hola", "buenas", "buenos días", "buenas tardes", "buenas noches"]:
+        respuesta = "¡Hola! ¿En qué puedo ayudarte hoy? Puedo guiarte a buscar partidas, revisar manuales o ver el estado de tu licencia."
+        sugerencias = ["Buscar partida", "Ver manuales", "Mi licencia"]
+
+    elif m in ["gracias", "muchas gracias", "ok", "entiendo"]:
+        respuesta = "Con gusto. Si necesitas otra cosa, dime: buscar una partida, ver manuales o contactar soporte."
+        sugerencias = ["Buscar partida", "Mi licencia", "Contactar soporte"]
+
+    elif m in ["adiós", "chau", "hasta luego"]:
+        respuesta = "¡Hasta luego! Cuando necesites ayuda vuelve a escribir."
+        sugerencias = []
+
+    elif "qué es una subpartida" in m or m == "subpartida":
+        respuesta = (
+            "Una subpartida es una subdivisión más detallada dentro de una partida arancelaria. Permite clasificar productos con mayor precisión y definir requisitos específicos."
+        )
+        sugerencias = ["¿Dónde veo los documentos requeridos?", "Buscar partida"]
+
+    elif "dónde veo los documentos" in m or "ver documentos requeridos" in m:
+        respuesta = (
+            "Para ver los documentos y requisitos, busca la partida y haz clic en el resultado para ver su detalle."
+            " En el detalle verás: tipos de documento, entidad emisora y la disposición legal relacionada."
+        )
+        sugerencias = ["Buscar partida", "¿Qué entidad emite el permiso?"]
+
+    elif "qué entidad emite el permiso" in m:
+        respuesta = (
+            "La entidad emisora (por ejemplo: Ministerio, Instituto o Autoridad sanitaria) aparece en el detalle de cada partida."
+            " Busca la partida y en su ficha verás la entidad responsable y los requisitos asociados."
+        )
+        sugerencias = ["Buscar partida", "Ver detalle de partida"]
+
+    elif "tienen soporte" in m or "hay soporte" in m or "disponen de soporte" in m:
+        respuesta = (
+            "Sí, tenemos soporte. Puedes acceder al formulario de soporte desde el menú o en la página de Soporte."
+            " Si es un problema urgente, envía los detalles y tu contacto para que el equipo te responda."
+        )
+        sugerencias = ["Ir a soporte", "¿Cuánto tardan en responder?"]
+
+    elif "cuánto tardan en responder" in m:
+        respuesta = (
+            "Normalmente el equipo de soporte responde en menos de 24 horas hábiles. Si necesitas respuesta más rápida indícalo en tu solicitud y deja un teléfono o correo."
+        )
+        sugerencias = ["Contactar soporte", "¿Atienden por WhatsApp?"]
+
+    elif re.search(r"\bice\b", m) or re.search(r"\biehd\b", m):
+        respuesta = (
+            "ICE (Impuesto al Consumo Específico) e IEHD (Impuesto Especial a Hidrocarburos y Derivados) son gravámenes que aplican a determinados productos (bebidas, tabacos, combustibles, etc.)."
+            " En la ficha de la partida verás si aplica ese impuesto y su monto."
+        )
+        sugerencias = ["Buscar partida", "¿A qué partidas aplica?"]
+
+    elif "requisitos de una partida" in m or "documentos de una partida" in m:
+        respuesta = (
+            "Revisa la ficha de la partida desde el buscador: allí se listan los documentos requeridos, la entidad emisora y la base legal."
+        )
+        sugerencias = ["Buscar partida", "Ver detalle de partida"]
+
+    elif "capítulo arancelario" in m or "qué es un capítulo" in m:
+        respuesta = (
+            "Un capítulo arancelario agrupa partidas relacionadas por familia de productos. Por ejemplo, Capítulo 01: animales vivos; Capítulo 02: carnes."
+        )
+        sugerencias = ["Lista de capítulos", "Buscar partida"]
+
+    elif "qué es una partida" in m or "partida arancelaria" in m:
+        respuesta = (
+            "Una partida arancelaria es un código que identifica un producto para efectos de impuesto y regulación en comercio internacional."
+            " En su detalle se indican gravámenes, permisos y documentos asociados."
+        )
+        sugerencias = ["¿Qué es una subpartida?", "Buscar partida"]
+
+    elif "buscar" in m or m == "buscar partida":
+        respuesta = (
+            """Cómo buscar una partida:
+• Ve a 'Buscar Partidas' en el menú.
+• Escribe el código completo o parte de la descripción.
+• Usa filtros (capítulo, gravamen, entidad) para acotar resultados."""
+        )
+        sugerencias = ["Buscar partida", "Filtrar por capítulo"]
+
+    elif "filtro" in m:
+        respuesta = (
+            """Filtros útiles:
+• Capítulo: agrupa por familias.
+• Gravamen: muestra el impuesto aplicable.
+• Entidad que emite: autoridad responsable.
+• Tipo de documento: qué se exige para el trámite."""
+        )
+        sugerencias = ["¿Qué filtro me conviene usar?", "Buscar partida"]
+
+    elif "licencia" in m or "caduca" in m or m == "mi licencia" or "tiempo" in m or "cuánto tiempo" in m:
+        # consultar licencia solo si el usuario está autenticado
+        if not request.user.is_authenticated:
+            respuesta = "Para ver el estado de tu licencia debes iniciar sesión. Pulsa en 'Iniciar sesión' y luego pregunta 'Mi licencia'."
+            sugerencias = ["Iniciar sesión", "Crear cuenta"]
+        else:
+            try:
+                from datetime import date
+                from .models import LicenciaTemporal
+                licencia = LicenciaTemporal.objects.filter(usuario=request.user, estado=True).order_by('-fecha_fin').first()
+                if licencia:
+                    hoy = date.today()
+                    dias_restantes = (licencia.fecha_fin - hoy).days
+                    if dias_restantes > 0:
+                        respuesta = f"Tu licencia temporal vence el <strong>{licencia.fecha_fin}</strong>. Te quedan <strong>{dias_restantes} días</strong> de acceso al sistema. Si quieres renovarla, escribe '¿Cómo renovarla?'."
+                    else:
+                        respuesta = f"Tu licencia temporal expiró el <strong>{licencia.fecha_fin}</strong>. Para renovarla contacta al administrador o solicita soporte desde la sección 'Soporte'."
+                else:
+                    respuesta = "No se encontró una licencia activa para tu usuario. Contacta al administrador o abre un ticket en Soporte."
+            except Exception:
+                respuesta = "No se pudo obtener información de licencia en este momento. Intenta nuevamente más tarde."
+            sugerencias = ["¿Qué es la licencia?", "Cómo renovarla"]
+
+    elif "qué es la licencia" in m:
+        respuesta = (
+            "Una licencia es el permiso que autoriza tu acceso al sistema durante un periodo. Las cuentas nuevas suelen tener 7 días de prueba."
+        )
+        sugerencias = ["¿Está activa mi licencia?", "Cómo renovarla"]
+
+    elif "manual buscador" in m or "manual del buscador" in m:
+        respuesta = (
+            "Puedes revisar el manual llamado <strong>Guía del Buscador</strong> en la sección de manuales.<br>"
+            "Ahí se explica cómo hacer búsquedas por texto, código y filtros."
+        )
+        sugerencias = ["Ver manuales", "Buscar partida"]
+
+    elif "manual administrador" in m or "manual para admin" in m:
+        respuesta = (
+            "Sí: en 'Manuales' hay guías para administradores (importar Excel, gestionar partidas y usuarios)."
+        )
+        sugerencias = ["Ver manuales", "¿Cómo importar partidas?"]
+
+    elif "manual" in m or m == "ver manuales":
+        respuesta = (
+            "Puedes encontrar los manuales en la sección 'Manuales' del menú. Busca 'Guía del Buscador' o 'Manual Administrador' según lo que necesites."
+        )
+        sugerencias = ["Ver manuales", "Guía del Buscador"]
+
+    elif "registro" in m or "crear cuenta" in m:
+        respuesta = (
+            "Para crear una cuenta ve a 'Crear cuenta' en la pantalla principal. Necesitarás nombre, apellido, correo, usuario y contraseña."
+        )
+        sugerencias = ["¿Qué datos necesito?", "Crear cuenta"]
+
+    elif "qué datos necesito" in m or "datos para registrarme" in m:
+        respuesta = (
+            "Solicitamos: nombre, apellido, correo electrónico válido, nombre de usuario y contraseña segura."
+        )
+        sugerencias = ["Crear cuenta", "¿Puedo registrarme sin correo?"]
+
+    elif "registrarme sin correo" in m:
+        respuesta = (
+            "No, actualmente es necesario un correo válido para completar el registro y recibir notificaciones."
+        )
+        sugerencias = ["Crear cuenta", "¿Qué datos necesito?"]
+
+    elif "error" in m or "problema" in m or "no puedo" in m:
+        respuesta = (
+            """Lamento que tengas un problema. Prueba esto:
+• Verifica usuario/contraseña.
+• Revisa que tu licencia esté activa.
+• Limpia caché o intenta otro navegador.
+Si sigue fallando, abre un ticket en Soporte indicando pasos para reproducir el error."""
+        )
+        sugerencias = ["Contactar soporte", "No encuentro partidas", "No puedo iniciar sesión"]
+
+    elif "soporte" in m or "contactar" in m or "ayuda" in m or m == "contactar soporte":
+        respuesta = (
+            "Para contactar soporte usa el formulario en 'Soporte' o envía un correo con tu problema y datos de contacto."
+            " Si quieres, puedo abrir la página de Soporte ahora mismo para que completes el formulario."
+        )
+        # sugerencia inmediata para preguntar Whatsapp
+        sugerencias = ["Ir a soporte", "¿Atienden por WhatsApp?"]
+        # si el usuario pidió explícitamente abrir soporte (incluye frases como "contactar soporte"), devolver la acción inmediata
+        if any(kw in m for kw in ["abre", "abrir", "abrí", "abre la pagina", "abre la página", "abrir soporte", "abre soporte"]) or 'contactar soporte' in m or m.strip() in ('contactar soporte','contactar'):
+            action = {'open_support': '/soporte/', 'action_text': 'Abrir la página de Soporte.'}
+            # ejecutar la acción automáticamente en el cliente
+            action['auto_open'] = True
+            respuesta = "Abriendo la página de Soporte..."
+            return respuesta, sugerencias, action
+        # en caso contrario, sugerimos la acción y la guardamos en session para que
+        # si el usuario confirma con 'si' en el siguiente mensaje, podamos ejecutarla
+        try:
+            request.session['chat_last_action'] = {'open_support': '/soporte/', 'action_text': 'Abrir la página de Soporte.'}
+        except Exception:
+            pass
+        return respuesta, sugerencias, None
+
+    else:
+        respuesta = (
+            "No entendí exactamente tu consulta. ¿Quieres que te muestre opciones de ayuda? Puedes elegir: Buscar partida, Ver manuales, Mi licencia o Contactar soporte."
+        )
+        sugerencias = ["Buscar partida", "Ver manuales", "Mi licencia", "Contactar soporte"]
+
+    return respuesta, sugerencias, action
+
+# API endpoint para el chat de ayuda usando Dialogflow (si está configurado). Si no,
+# se usa el generador local como fallback.
+from django.views.decorators.http import require_POST
+from django.views.decorators.csrf import csrf_exempt
+
+
+
+@require_POST
+def api_chat_help(request):
+    """Recibe POST con 'message' y devuelve JSON con la respuesta generada por Dialogflow.
+    Opciones:
+      - public=1 -> permite acceso anónimo (si se desea)
+      - stream=1 -> devuelve respuesta en streaming como SSE (text/event-stream)
+    """
+    # permitir acceso público si se incluye public=1 en el body; si no, requiere login
+    is_public = (request.POST.get('public') == '1')
+    if not request.user.is_authenticated and not is_public:
+        return JsonResponse({'ok': False, 'error': 'Autenticación requerida'}, status=403)
+
+    # Si el cliente Dialogflow no está disponible, no fallamos: usaremos el generador local como fallback
+
+    # soportar JSON y form-encoded
+    message = request.POST.get('message') or ''
+    if not message:
+        try:
+            import json
+            payload = json.loads(request.body.decode('utf-8') or '{}')
+            message = payload.get('message', '')
+        except Exception:
+            message = ''
+
+    if not message:
+        return JsonResponse({'ok': False, 'error': 'message es requerido'}, status=400)
+
+    # si se pide streaming (stream=1), devolver StreamingHttpResponse con bloques tipo SSE (data: ...\n\n)
+    wants_stream = (request.POST.get('stream') == '1')
+
+    # registrar la petición en ChatMessage (parcial — actualizamos respuesta después si es streaming)
+    try:
+        from .models import ChatMessage
+        chat_entry = ChatMessage.objects.create(
+            usuario=request.user if request.user.is_authenticated else None,
+            mensaje=message,
+            publico=is_public
+        )
+    except Exception:
+        chat_entry = None
+
+    try:
+        # Primero, manejar localmente intenciones simples para respuestas inmediatas
+        low = message.strip().lower()
+        local_triggers = ('soporte', 'contactar soporte', 'contactar', 'whatsapp', 'atienden por whatsapp', 'atienden por whats')
+        if any(t in low for t in local_triggers):
+            # Generar respuesta local corta y devolver inmediatamente
+            reply, sugerencias, action = _generate_local_reply(message, request)
+            if chat_entry:
+                try:
+                    chat_entry.respuesta = reply
+                    chat_entry.save()
+                except Exception:
+                    pass
+            if wants_stream:
+                import json as _json
+                def event_stream_local():
+                    yield f"data: {reply}\n\n"
+                    try:
+                        if action:
+                            yield f"data: __ACTION__{_json.dumps(action)}\n\n"
+                    except Exception:
+                        pass
+                return StreamingHttpResponse(event_stream_local(), content_type='text/event-stream')
+            action_text = None
+            if action and isinstance(action, dict):
+                action_text = action.get('action_text') or ('Abrir soporte' if 'open_support' in action else ('Abrir WhatsApp' if 'open_whatsapp' in action else None))
+            return JsonResponse({'ok': True, 'reply': reply, 'action': action, 'action_text': action_text})
+
+        # Intent: usar Dialogflow si está disponible. Siempre devolveremos algún texto:
+        # 1) si Dialogflow responde con texto no vacío, lo devolvemos; 2) si falla o responde vacío,
+        #    usamos el generador local como fallback y lo formateamos como respuesta definitiva
+        try:
+            if wants_stream:
+                # prefiera streaming si el cliente lo soporta
+                if stream_chat_response is not None:
+                    def event_stream():
+                        try:
+                            full = ''
+                            for chunk in stream_chat_response(message):
+                                full += chunk
+                                yield f"data: {chunk}\n\n"
+                            if chat_entry:
+                                try:
+                                    chat_entry.respuesta = full
+                                    chat_entry.save()
+                                except Exception:
+                                    pass
+                        except Exception:
+                            # fallback a respuesta local en caso de error
+                            fallback_reply, _, action = _generate_local_reply(message, request)
+                            yield f"data: {fallback_reply}\n\n"
+
+                    return StreamingHttpResponse(event_stream(), content_type='text/event-stream')
+                else:
+                    # no hay streaming disponible; obtener respuesta completa y devolver como único chunk
+                    if get_chat_response is not None:
+                        try:
+                            resp = get_chat_response(message)
+                        except Exception:
+                            resp = ''
+                        if resp and isinstance(resp, str) and resp.strip():
+                            if chat_entry:
+                                try:
+                                    chat_entry.respuesta = resp
+                                    chat_entry.save()
+                                except Exception:
+                                    pass
+                            return StreamingHttpResponse((f"data: {resp}\n\n",), content_type='text/event-stream')
+                        # si resp vacío o error, fallback local
+                        fallback_reply, _, action = _generate_local_reply(message, request)
+                        if chat_entry:
+                            try:
+                                chat_entry.respuesta = fallback_reply
+                                chat_entry.save()
+                            except Exception:
+                                pass
+                        return StreamingHttpResponse((f"data: {fallback_reply}\n\n",), content_type='text/event-stream')
+
+            # Non-streaming path: prefer Dialogflow, fallback to local
+            if get_chat_response is not None:
+                try:
+                    reply = get_chat_response(message)
+                except Exception:
+                    reply = ''
+                if reply and isinstance(reply, str) and reply.strip():
+                    if chat_entry:
+                        try:
+                            chat_entry.respuesta = reply
+                            chat_entry.save()
+                        except Exception:
+                            pass
+                    try:
+                        HistoriaActividad.objects.create(usuario=request.user if request.user.is_authenticated else None, accion=f"chat_help: {message[:200]}")
+                    except Exception:
+                        pass
+                    return JsonResponse({'ok': True, 'reply': reply})
+
+            # Si llegamos aquí, Dialogflow no está disponible o respondió vacío -> usar fallback local
+            fallback_reply, sugerencias, action = _generate_local_reply(message, request)
+            if chat_entry:
+                try:
+                    chat_entry.respuesta = fallback_reply
+                    chat_entry.save()
+                except Exception:
+                    pass
+            try:
+                HistoriaActividad.objects.create(usuario=request.user if request.user.is_authenticated else None, accion=f"chat_help: {message[:200]}")
+            except Exception:
+                pass
+            action_text = None
+            if action and isinstance(action, dict):
+                action_text = action.get('action_text') or ('Abrir soporte' if 'open_support' in action else ('Abrir WhatsApp' if 'open_whatsapp' in action else None))
+            return JsonResponse({'ok': True, 'reply': fallback_reply, 'action': action, 'action_text': action_text})
+        except Exception as e:
+            # En caso de cualquier excepción no prevista, intentar devolver algo útil
+            try:
+                fallback_reply, sugerencias, action = _generate_local_reply(message, request)
+                if chat_entry:
+                    try:
+                        chat_entry.respuesta = fallback_reply
+                        chat_entry.save()
+                    except Exception:
+                        pass
+                return JsonResponse({'ok': True, 'reply': fallback_reply})
+            except Exception:
+                return JsonResponse({'ok': False, 'error': str(e)}, status=500)
+    except Exception as e:
+    # si cualquier excepción por Dialogflow ocurre, responder con fallback local
+        try:
+            fallback_reply, _, action = _generate_local_reply(message, request)
+            if chat_entry:
+                try:
+                    chat_entry.respuesta = fallback_reply
+                    chat_entry.save()
+                except Exception:
+                    pass
+            action_text = None
+            if action and isinstance(action, dict):
+                action_text = action.get('action_text') or ('Abrir soporte' if 'open_support' in action else ('Abrir WhatsApp' if 'open_whatsapp' in action else None))
+            return JsonResponse({'ok': True, 'reply': fallback_reply, 'action': action, 'action_text': action_text})
+        except Exception:
+            return JsonResponse({'ok': False, 'error': str(e)}, status=500)
+    
+# Vista para estadísticas de aranceles
+@login_required
+@rol_requerido('Administrador')
+def estadisticas_aranceles(request):
+    # filtros posibles: entidad_emite, capitulo (coma-separados)
+    entidad = request.GET.get('entidad_emite', '').strip()
+    capitulos_param = request.GET.get('capitulos', '').strip()
+    desde = request.GET.get('desde', '').strip()
+    hasta = request.GET.get('hasta', '').strip()
+
+    qs = PartidaArancelaria.objects.all()
+    if entidad:
+        qs = qs.filter(entidad_emite__icontains=entidad)
+    if capitulos_param:
+        # aceptar lista separada por comas
+        caps = [c.strip() for c in capitulos_param.split(',') if c.strip()]
+        qs = qs.filter(capitulo__in=caps)
+
+    # Nota: el modelo PartidaArancelaria no tiene campo de fecha de actualización ('updated_at'),
+    # por lo que los filtros 'desde'/'hasta' no se aplican. Para habilitarlos es necesario añadir
+    # un campo DateTimeField en el modelo y ejecutar migraciones. Informar al template si se pasan.
+    fecha_filter_aplicada = False
+    if desde or hasta:
+        # intentar parsear fechas en formato YYYY-MM-DD y aplicar filtro sobre updated_at
+        try:
+            if desde:
+                desde_dt = datetime.strptime(desde, '%Y-%m-%d')
+                qs = qs.filter(updated_at__gte=desde_dt)
+            if hasta:
+                hasta_dt = datetime.strptime(hasta, '%Y-%m-%d')
+                # incluir fin del día
+                hasta_dt = hasta_dt.replace(hour=23, minute=59, second=59)
+                qs = qs.filter(updated_at__lte=hasta_dt)
+            fecha_filter_aplicada = True
+        except Exception:
+            # si el parse falla, no aplicamos filtro y marcamos que no se aplicó
+            fecha_filter_aplicada = False
+
+    # calcular promedios por capítulo: parsear el campo 'gravamen' con tolerancia a textos
+    from decimal import Decimal, InvalidOperation
+    import json as _json
+
+    def parse_gravamen(val):
+        if not val:
+            return None
+        s = str(val).strip()
+        # buscar primera ocurrencia de número (acepta coma como decimal)
+        m = re.search(r"[-+]?\d+[\.,]?\d*", s)
+        if not m:
+            return None
+        num = m.group(0).replace(',', '.')
+        try:
+            return Decimal(num)
+        except InvalidOperation:
+            return None
+
+    capitulos = list(qs.values_list('capitulo', flat=True).distinct())
+    promedios = []
+    for cap in capitulos:
+        sub_qs = qs.filter(capitulo=cap)
+        total = Decimal('0')
+        count = 0
+        values = []
+        for p in sub_qs:
+            g = parse_gravamen(p.gravamen)
+            if g is None:
+                continue
+            values.append(g)
+            total += g
+            count += 1
+        promedio = (total / count) if count > 0 else None
+        # calcular min y max si tenemos valores
+        min_v = (min(values) if values else None)
+        max_v = (max(values) if values else None)
+        promedios.append({
+            'capitulo': cap,
+            'promedio': (round(promedio, 2) if promedio is not None else None),
+            'min': (round(min_v, 2) if min_v is not None else None),
+            'max': (round(max_v, 2) if max_v is not None else None),
+            'count': count
+        })
+
+    # ordenar por capítulo (alfanumérico)
+    promedios = sorted(promedios, key=lambda x: (x['capitulo'] or ''))
+
+    # pasar JSON para el gráfico
+    promedios_json = _json.dumps(promedios, default=str)
+
+    return render(request, 'partidas/estadisticas_aranceles.html', {
+        'promedios': promedios,
+        'promedios_json': promedios_json,
+        'filtros': {
+            'entidad_emite': entidad,
+            'capitulos': capitulos_param,
+            'desde': desde,
+            'hasta': hasta,
+            'fecha_filter_aplicada': fecha_filter_aplicada
+        }
+    })
+
+
+@login_required
+def log_click(request):
+    """Endpoint para registrar clicks desde la UI (historial -> detalle / búsqueda).
+    Espera POST con 'partida_id' (opcional) y 'accion' (opcional) y 'termino' (opcional).
+    """
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'POST required'}, status=400)
+
+    partida_id = request.POST.get('partida_id') or request.POST.get('partida')
+    accion = request.POST.get('accion', 'historial_click')
+    termino = request.POST.get('termino', '')
+
+    partida = None
+    if partida_id:
+        try:
+            partida = PartidaArancelaria.objects.get(id=partida_id)
+        except PartidaArancelaria.DoesNotExist:
+            partida = None
+
+    try:
+        ClickLog.objects.create(usuario=request.user, partida=partida, accion=accion, extra=termino)
+        return JsonResponse({'ok': True})
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': str(e)}, status=500)
+
+
+@rol_requerido('Administrador')
+def admin_busquedas(request):
+    """Vista para que Admin vea, filtre y exporte búsquedas realizadas por despachantes."""
+    qs = Busqueda.objects.select_related('usuario').order_by('-fecha')
+
+    usuario = request.GET.get('usuario', '').strip()
+    termino = request.GET.get('termino', '').strip()
+    desde = request.GET.get('desde', '').strip()
+    hasta = request.GET.get('hasta', '').strip()
+
+    if usuario:
+        qs = qs.filter(usuario__username__icontains=usuario)
+    if termino:
+        qs = qs.filter(termino_buscado__icontains=termino)
+    if desde:
+        qs = qs.filter(fecha__gte=desde)
+    if hasta:
+        qs = qs.filter(fecha__lte=hasta)
+
+    # Export CSV
+    if request.GET.get('export') == 'csv':
+        # registrar la exportación
+        filtros = { 'usuario': usuario, 'termino': termino, 'desde': desde, 'hasta': hasta }
+        ExportLog.objects.create(usuario=request.user, accion='export_busquedas_csv', filtros=str(filtros))
+
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="busquedas_export.csv"'
+        writer = csv.writer(response)
+        writer.writerow(['usuario', 'termino', 'fecha', 'resultados'])
+        for b in qs:
+            resultados_text = getattr(b, 'resultados', '') or ''
+            writer.writerow([b.usuario.username, b.termino_buscado, b.fecha.strftime('%Y-%m-%d %H:%M:%S'), resultados_text])
+        return response
+
+    # paginar manualmente simple: mostrar primeras 500
+    resultados = qs[:500]
+
+    return render(request, 'partidas/admin_busquedas.html', {'busquedas': resultados, 'filtros': {'usuario': usuario, 'termino': termino, 'desde': desde, 'hasta': hasta}})
+
+
+@login_required
+def solicitar_ayuda_documento(request, referencia_id):
+    """Permite al usuario solicitar ayuda cuando un documento no está disponible.
+    Crea una entrada en HistoriaActividad y redirige de vuelta al detalle de la partida.
+    """
+    from django.shortcuts import redirect
+    ref = None
+    try:
+        ref = PartidaReferencia.objects.get(id=referencia_id)
+    except PartidaReferencia.DoesNotExist:
+        messages.error(request, 'Referencia no encontrada')
+        return redirect('inicio')
+
+    # crear registro de actividad solicitando ayuda
+    mensaje = f"Solicitud de ayuda para documento {ref.id} (partida {ref.partida.codigo}) por usuario {request.user.username}"
+    HistoriaActividad.objects.create(usuario=request.user, accion=mensaje)
+    messages.success(request, 'Se ha solicitado ayuda. El equipo de soporte recibirá la solicitud.')
+    return redirect('detalle_partida', partida_id=ref.partida.id)
+
+
+# AJAX endpoints para el panel de estadísticas en admin
+@login_required
+@rol_requerido('Administrador')
+def api_stats_by_chapter(request):
+    """API AJAX para obtener estadísticas de gravamen por capítulo con filtros.
+    GET params: entidad_emite, capitulos (coma-separados)
+    Retorna JSON con lista de estadísticas.
+    """
+    from django.http import JsonResponse
+    from decimal import Decimal, InvalidOperation
+    import re
+    
+    entidad = request.GET.get('entidad_emite', '').strip()
+    capitulos_param = request.GET.get('capitulos', '').strip()
+    
+    try:
+        def _parse_gravamen(val):
+            if not val:
+                return None
+            s = str(val).strip()
+            m = re.search(r"[-+]?\d+[\.,]?\d*", s)
+            if not m:
+                return None
+            num = m.group(0).replace(',', '.')
+            try:
+                return Decimal(num)
+            except InvalidOperation:
+                return None
+        
+        part_qs = PartidaArancelaria.objects.all()
+        if entidad:
+            part_qs = part_qs.filter(entidad_emite__icontains=entidad)
+        if capitulos_param:
+            caps = [c.strip() for c in capitulos_param.split(',') if c.strip()]
+            part_qs = part_qs.filter(capitulo__in=caps)
+        
+        chap_map = {}
+        for p in part_qs:
+            cap = p.capitulo or 'Sin capítulo'
+            g = _parse_gravamen(p.gravamen)
+            if g is None:
+                continue
+            data = chap_map.setdefault(cap, {'values': [], 'count': 0})
+            data['values'].append(g)
+            data['count'] += 1
+        
+        chapter_stats = []
+        for cap, data in chap_map.items():
+            vals = data['values']
+            if not vals:
+                continue
+            mn = min(vals)
+            mx = max(vals)
+            tot = sum(vals)
+            avg = (tot / len(vals)) if len(vals) > 0 else None
+            chapter_stats.append({
+                'capitulo': cap,
+                'promedio': round(float(avg), 2) if avg is not None else None,
+                'min': round(float(mn), 2) if mn is not None else None,
+                'max': round(float(mx), 2) if mx is not None else None,
+                'count': data['count']
+            })
+        chapter_stats = sorted(chapter_stats, key=lambda x: (x['capitulo'] or ''))
+        return JsonResponse({'success': True, 'data': chapter_stats, 'count': len(chapter_stats)})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@login_required
+@rol_requerido('Administrador')
+def api_autocomplete_entidades(request):
+    """API para autocompletado de entidades emisoras.
+    GET param: q (búsqueda parcial)
+    Retorna JSON con lista de entidades únicas.
+    """
+    from django.http import JsonResponse
+    q = request.GET.get('q', '').strip().lower()
+    # Obtener lista única de entidades
+    entidades = PartidaArancelaria.objects.values_list('entidad_emite', flat=True).distinct().order_by('entidad_emite')
+    # Filtrar por búsqueda
+    if q:
+        entidades = [e for e in entidades if q in e.lower()]
+    else:
+        entidades = list(entidades)[:30]  # Límite para no sobrecargar
+    return JsonResponse({'results': entidades})
+
+
+@login_required
+@rol_requerido('Administrador')
+def api_autocomplete_capitulos(request):
+    """API para autocompletado de capítulos.
+    GET param: q (búsqueda parcial)
+    Retorna JSON con lista de capítulos únicos.
+    """
+    from django.http import JsonResponse
+    q = request.GET.get('q', '').strip().lower()
+    # Obtener lista única de capítulos
+    capitulos = PartidaArancelaria.objects.values_list('capitulo', flat=True).distinct().order_by('capitulo')
+    # Filtrar por búsqueda
+    if q:
+        capitulos = [c for c in capitulos if q in c.lower()]
+    else:
+        capitulos = list(capitulos)[:30]
+    return JsonResponse({'results': capitulos})
+

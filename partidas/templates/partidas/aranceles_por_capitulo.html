@@ -1,0 +1,41 @@
+{% extends 'partidas/base.html' %}
+{% load static %}
+
+{% block extra_styles %}
+<style>
+  body.detalle-bg {
+    background-image: url('{% static "img/fondo.jpg.png" %}');
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    background-position: center;
+  }
+  .detalle-container { background-color: rgba(255,255,255,0.95); padding: 1rem; border-radius: 8px; }
+</style>
+{% endblock %}
+
+{% block body_class %}detalle-bg{% endblock %}
+
+{% block content %}
+<h2>Aranceles - Capítulo {{ capitulo }}</h2>
+{% if aranceles %}
+  <div class="table-responsive">
+    <table class="table table-sm table-striped">
+      <thead><tr><th>Código</th><th>Descripción</th><th>Gravamen</th></tr></thead>
+      <tbody>
+        {% for a in aranceles %}
+        <tr>
+          <td>{{ a.codigo }}</td>
+          <td>{{ a.descripcion }}</td>
+          <td>{{ a.gravamen }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <div class="alert alert-info" role="alert">
+    No hay partidas registradas para este capítulo.
+  </div>
+{% endif %}
+{% endblock %}

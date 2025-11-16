@@ -1,0 +1,49 @@
+{% extends "partidas/base.html" %}
+{% block body_class %}detalle-bg{% endblock %}
+{% block content %}
+<div class="manual-contenedor">
+    <h2>Guía rápida: Cómo usar el Buscador</h2>
+    <p>Esta guía está pensada para usuarios que únicamente desean aprender a buscar aranceles de forma rápida y eficaz.</p>
+
+    <h4>1. Búsqueda por código</h4>
+    <ol>
+        <li>Escribe el código (total o parcial) en el campo de búsqueda. Ejemplo: <code>010121</code> o <code>0101</code>.</li>
+        <li>Pulsa <strong>Buscar</strong> o selecciona una sugerencia que aparece en el desplegable.</li>
+        <li>Haz clic en el resultado para ver el detalle de la partida.</li>
+    </ol>
+
+    <h4>2. Búsqueda por descripción</h4>
+    <ol>
+        <li>Escribe palabras clave que describan el producto (p. ej. "carne", "pescado", "medicamento").</li>
+        <li>El sistema muestra partidas que contienen esas palabras en la descripción.</li>
+        <li>Usa <mark>múltiples palabras</mark> para refinar resultados (por ejemplo: "carne fresca").</li>
+    </ol>
+
+    <h4>3. Autocompletado</h4>
+    <p>Al escribir, el sistema muestra sugerencias basadas en código y descripción. Puedes seleccionar una sugerencia para completar el campo rápidamente.</p>
+
+    <h4>4. Filtros</h4>
+    <p>Abre el panel de filtros para limitar por:</p>
+    <ul>
+        <li><strong>Capítulo:</strong> familias de productos.</li>
+        <li><strong>Gravamen:</strong> filtra por texto del impuesto.</li>
+        <li><strong>Entidad que emite:</strong> Ministerio u organismo emisor.</li>
+        <li><strong>Tipo de documento:</strong> si la partida requiere un permiso específico.</li>
+    </ul>
+
+    <h4>5. Resultado y detalle</h4>
+    <p>En el resultado verás: Código, Descripción, Gravamen, ACE22 (CHI / PROT), y enlaces a referencias o documentos. Haz clic en el código para abrir la ficha detallada.</p>
+
+    <h4>6. Qué hacer si no encuentras lo que buscas</h4>
+    <ul>
+        <li>Prueba variantes de palabras clave (singular/plural).</li>
+        <li>Revisa el Historial para ver búsquedas previas y ejemplos.</li>
+        <li>Usa el Chat de Ayuda para pedir orientación rápida: "Buscar partida" o "Ver manuales".</li>
+    </ul>
+
+    <div style="margin-top:1rem;">
+        <a class="btn btn-primary" href="{% url 'buscar_partidas' %}">Ir al Buscador</a>
+        <a class="btn btn-link" href="{% url 'manuales' %}">Volver a Manuales</a>
+    </div>
+</div>
+{% endblock %}

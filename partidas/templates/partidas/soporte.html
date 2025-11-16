@@ -1,21 +1,23 @@
 {% extends "partidas/base.html" %}
 
-{% block content %}
+{% load static %}
+{% block extra_styles %}
 <style>
-    body {
-        background-image: url('https://sisarm.com/wp-content/uploads/2021/11/19-191450_import-and-export-1024x576.jpeg');
+    body.detalle-bg {
+        background-image: url('{% static "img/fondo.jpg.png" %}');
         background-size: cover;
-        background-position: center;
+        background-repeat: no-repeat;
         background-attachment: fixed;
+        background-position: center;
     }
 
     .soporte-container {
         max-width: 600px;
         margin: 4rem auto;
-        background: rgba(255, 255, 255, 0.96);
+        background: rgba(255,255,255,0.96);
         padding: 2rem;
         border-radius: 15px;
-        box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+        box-shadow: 0 0 20px rgba(0,0,0,0.2);
     }
 
     .soporte-container h2 {
@@ -39,6 +41,11 @@
         font-size: 0.9rem;
     }
 </style>
+{% endblock %}
+
+{% block body_class %}detalle-bg{% endblock %}
+
+{% block content %}
 
 <div class="soporte-container">
     <h2>Soporte Técnico</h2>
@@ -47,7 +54,7 @@
     </p>
 
     <div class="text-center mt-4">
-        <a href="https://wa.me/5916919015?text=Hola, necesito ayuda con SISARM Search."
+        <a href="https://wa.me/59177682918?text=Hola, necesito ayuda con SISARM Search."
            target="_blank"
            class="btn btn-success btn-lg">
              Contactar por WhatsApp

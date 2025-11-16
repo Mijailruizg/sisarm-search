@@ -13,24 +13,31 @@
 <body class="{% block body_class %}bg-light{% endblock %}">
 
     {% if not ocultar_navbar %}
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark" style="position: relative;">
         <div class="container">
+            <!-- Botón volver atrás en la esquina izquierda (posicionable) -->
+            <button class="btn btn-sm btn-outline-light back-button" onclick="history.back();" title="Volver atrás">
+                ←
+            </button>
             <a class="navbar-brand" href="#">SISARM Search</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                {% if user.is_authenticated and not ocultar_botones %}
+                {% if user.is_authenticated and not ocultar_botones and 'accounts/login' not in request.path %}
                 <ul class="navbar-nav ms-auto">
-                    <li class="nav-item"><a class="nav-link" href="{% url 'buscar_partidas' %}">Buscar</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{% url 'buscar_partidas' %}">Buscar Partidas</a></li>
                     <li class="nav-item"><a class="nav-link" href="{% url 'historial_buscador' %}">Historial</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{% url 'chat_asistente' %}">Chat de Ayuda</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{% url 'manuales' %}">Manuales</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{% url 'estadisticas_aranceles' %}">Estadísticas de Aranceles</a></li>
                     <li class="nav-item"><a class="nav-link" href="{% url 'importar_excel' %}">Importar</a></li>
                     <li class="nav-item"><a class="nav-link" href="{% url 'panel_partidas' %}">Admin Partidas</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{% url 'manuales' %}">Manuales</a></li>
-                    <li class="nav-item">
+                    <li class="nav-item d-flex align-items-center">
+                        <a class="nav-link me-2" href="{% url 'inicio' %}" style="padding: 0.25rem 0.5rem;">Inicio</a>
                         <form method="post" action="{% url 'logout' %}">
                             {% csrf_token %}
-                            <button type="submit" class="nav-link btn btn-link text-warning w-100 text-start" style="border: none;">Cerrar sesión</button>
+                            <button type="submit" class="nav-link btn btn-link text-warning w-100 text-start" style="border: none; padding: 0.25rem 0.5rem;">Cerrar sesión</button>
                         </form>
                     </li>
                 </ul>
@@ -64,7 +71,24 @@
 
     <div class="marca-agua">@2025 SIS Code Creator - Para SISARM Bolivia</div>
 
+    <!-- Control de tamaño de texto -->
+    <div class="text-size-controls">
+        <button class="text-size-btn" data-size="small" title="Texto pequeño">A-</button>
+        <button class="text-size-btn" data-size="normal" title="Texto normal">A</button>
+        <button class="text-size-btn" data-size="large" title="Texto grande">A+</button>
+    </div>
+
     <style>
+        /* Estilo para el botón "Volver atrás": ajustar 'left' para mover más/menos a la izquierda */
+        .back-button {
+            position: absolute;
+            left: 8px; /* cambia este valor para mover el botón horizontalmente */
+            top: 8px;
+            z-index: 1060;
+        }
+
+        /* (navbar no fija - comportamiento por defecto) */
+
         .whatsapp-burbuja {
             position: fixed;
             top: 100px;
@@ -97,21 +121,89 @@
             z-index: 10000;
         }
 
-        .marca-agua {
+        /* Estilo compartido para marca de agua y texto de licencia */
+        .marca-agua, .texto-licencia {
             position: fixed;
-            bottom: 5px;
-            right: 10px;
-            opacity: 0.4;
-            font-size: 0.75rem;
+            opacity: 0.85;
+            font-size: 0.85rem;
             font-weight: 500;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             color: #ffffff;
             text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.6);
             pointer-events: none;
-            z-index: 1;
+            z-index: 1000;
+        }
+        .marca-agua { bottom: 5px; right: 10px; }
+        .texto-licencia { bottom: 40px; right: 20px; text-align: right; width: 260px; }
+
+        /* Estilos para controles de tamaño de texto */
+        .text-size-controls {
+            position: fixed;
+            left: 10px;
+            bottom: 10px;
+            z-index: 1000;
+            display: flex;
+            gap: 4px;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 6px;
+            border-radius: 4px;
+        }
+
+        .text-size-btn {
+            background: transparent;
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+            padding: 2px 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .text-size-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .text-size-btn.active {
+            background: rgba(255, 255, 255, 0.2);
         }
     </style>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    
+    <!-- Script para control de tamaño de texto -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const html = document.documentElement;
+            const buttons = document.querySelectorAll('.text-size-btn');
+            const sizes = {
+                'small': '0.9',
+                'normal': '1',
+                'large': '1.2'
+            };
+
+            // Cargar tamaño guardado
+            const savedSize = localStorage.getItem('textSize') || 'normal';
+            setTextSize(savedSize);
+
+            buttons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const size = btn.dataset.size;
+                    setTextSize(size);
+                    localStorage.setItem('textSize', size);
+                });
+            });
+
+            function setTextSize(size) {
+                html.style.fontSize = `${sizes[size]}rem`;
+                buttons.forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.size === size);
+                });
+            }
+        });
+    </script>
+
+    {% block scripts %}{% endblock %}
 </body>
 </html>

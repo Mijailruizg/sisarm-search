@@ -1,96 +1,167 @@
 {% extends "partidas/base.html" %}
 
-{% block content %}
+{% load static %}
+{% block extra_styles %}
 <style>
-    body {
-        background-image: url('https://sisarm.com/wp-content/uploads/2021/11/19-191450_import-and-export-1024x576.jpeg');
-        background-size: cover;
-        background-repeat: no-repeat;
-        background-attachment: fixed;
-    }
-
-    .manual-contenedor {
-        max-width: 900px;
-        margin: 4rem auto;
-        background-color: rgba(255, 255, 255, 0.95);
-        padding: 2.5rem;
-        border-radius: 12px;
-        box-shadow: 0 0 20px rgba(0,0,0,0.25);
-        font-family: 'Segoe UI', sans-serif;
-    }
-
-    .manual-contenedor h2 {
-        text-align: center;
-        margin-bottom: 2rem;
-    }
-
-    .manual-contenedor h4 {
-        margin-top: 1.5rem;
-        color: #003366;
-    }
-
-    .manual-contenedor p, .manual-contenedor li {
-        font-size: 1rem;
-        line-height: 1.6;
-        color: #222;
-    }
-
-    .manual-contenedor ul {
-        padding-left: 1.5rem;
-    }
+  body.detalle-bg {
+    background-image: url('{% static "img/fondo.jpg.png" %}');
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    background-position: center;
+  }
+  .manual-contenedor { max-width: 900px; margin: 4rem auto; background-color: rgba(255,255,255,0.95); padding: 2.5rem; border-radius: 12px; box-shadow: 0 0 20px rgba(0,0,0,0.25); font-family: 'Segoe UI', sans-serif; }
 </style>
+{% endblock %}
+
+{% block body_class %}detalle-bg{% endblock %}
+
+{% block content %}
 
 <div class="manual-contenedor">
-    <h2> Manual de Uso del Sistema SISARM Search</h2>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h2 class="mb-0">Manual paso a paso — SISARM Search</h2>
+                <div class="text-muted small">Guía actualizada y clara para entender el sistema y aprovechar sus funcionalidades.</div>
+            </div>
+            <div>
+                <a class="btn btn-primary btn-lg" href="{% url 'descargar_manual_usuario' %}" role="button">⬇ Descargar PDF</a>
+            </div>
+        </div>
 
-    <h4>1. Inicio de sesión</h4>
-    <ul>
-        <li>Accede al sistema con tu nombre de usuario y contraseña.</li>
-        <li>Si no tienes cuenta, haz clic en “Crear nueva cuenta”.</li>
-    </ul>
+    <p class="lead">Esta guía rápida explica el uso del sistema actual (búsqueda, filtros, detalle, exportación y soporte). Sigue los pasos en el orden indicado para entender y aprovechar SISARM Search.</p>
+    <nav class="mb-4">
+      <strong>Contenido:</strong>
+      <a href="#inicio" class="ml-2">Inicio</a> ·
+      <a href="#buscar" class="ml-2">Buscar partidas</a> ·
+      <a href="#filtros" class="ml-2">Filtros</a> ·
+      <a href="#detalle" class="ml-2">Ficha de detalle</a> ·
+      <a href="#exportar" class="ml-2">Exportar</a> ·
+      <a href="#licencias" class="ml-2">Licencias</a> ·
+      <a href="#soporte" class="ml-2">Soporte</a>
+    </nav>
 
-    <h4>2. Pantalla principal</h4>
-    <ul>
-        <li> Buscar Partidas</li>
-        <li> Historial</li>
-        <li> Manuales</li>
-        <li> Chat de Ayuda</li>
-        <li> Importar Excel (administradores)</li>
-    </ul>
+        <section id="inicio" class="manual-section">
+            <h4>Sección A — Inicio y configuración de la cuenta</h4>
+            <ol>
+        <li>Crear cuenta: ve a <strong>Crear nueva cuenta</strong> y completa nombre, apellido, correo, usuario y contraseña.</li>
+        <li>Inicio de sesión: usa tus credenciales en <strong>Iniciar sesión</strong>. Si olvidas la contraseña usa recuperación en el formulario de login.</li>
+        <li>Perfil: desde la esquina superior, revisa tu correo y datos. Mantén el correo actualizado para notificaciones.</li>
+    </ol>
+        </section>
 
-    <h4>3. Buscar partidas arancelarias</h4>
-    <ul>
-        <li>Haz clic en “Buscar Partidas”.</li>
-        <li>Escribe un código o palabra clave.</li>
-        <li>Presiona “Buscar” y revisa los resultados.</li>
-        <li>Haz clic en cualquier código para ver más detalles.</li>
-    </ul>
+        <section id="buscar" class="manual-section">
+            <h4>Sección B — Buscar partidas (flujo básico)</h4>
+            <ol>
+        <li>En el menú principal selecciona <strong>Buscar Partidas</strong>.</li>
+        <li>Escribe el código completo (ej. 010121) o una palabra clave de la descripción.</li>
+        <li>Pulsa <strong>Buscar</strong>. Los resultados se muestran con columnas esenciales (Código, Descripción, Gravamen).</li>
+        <li>Si necesitas precisión, haz clic sobre el resultado para abrir la <strong>Ficha de detalle</strong>.</li>
+    </ol>
+        </section>
 
-    <h4>4. Ver historial</h4>
-    <ul>
-        <li>Accede a “Historial”.</li>
-        <li>Visualiza tus búsquedas anteriores con fecha.</li>
-    </ul>
+        <section id="filtros" class="manual-section">
+            <h4>Sección C — Uso de filtros (mejorar resultados)</h4>
+            <ol>
+        <li><strong>Capítulo:</strong> selecciona el capítulo para limitar familias de productos (ej. Capítulo 1).</li>
+        <li><strong>Gravamen / Impuestos:</strong> filtra por texto que aparezca en el campo gravamen.</li>
+        <li><strong>Entidad que emite:</strong> filtra por la entidad (Ministerio, Instituto, etc.).</li>
+        <li>Combina varios filtros para resultados más precisos.</li>
+    </ol>
+        </section>
 
+            <section id="detalle" class="manual-section">
+                <h4>Sección D — Ficha de detalle de una partida</h4>
+                <p>
+                    La <strong>Ficha de detalle</strong> muestra toda la información disponible para una partida arancelaria concreta. Aquí encontrarás:
+                </p>
+                <ul>
+                    <li><strong>Código y descripción completa:</strong> texto ampliado para entender exactamente qué productos cubre la partida.</li>
+                    <li><strong>Gravámenes e impuestos:</strong> campos como <em>gravamen</em>, <em>ICE</em> o <em>IEHD</em> si aplican.</li>
+                    <li><strong>ACE22 (CHI / PROT):</strong> las medidas ACE aparecen separadas en columnas CHI y PROT cuando están disponibles; si no hay información aparece <strong>N/A</strong>.</li>
+                    <li><strong>Documentos y referencias legales:</strong> lista de documentos asociados y la disposición legal; desde aquí puedes solicitar ayuda si falta algún documento.</li>
+                    <li><strong>Acciones disponibles:</strong> exportar la ficha a PDF (opción en la ficha), y enlaces a descargar o ver referencias relacionadas.</li>
+                </ul>
+                <p>
+                    Cómo usarla: revisa primero la descripción para confirmar que la partida corresponde a tu producto. Luego consulte la sección de documentos y la entidad emisora para saber qué requisitos aplicarían al trámite. Si algo no concuerda, usa "Solicitar ayuda" para notificar al equipo.
+                </p>
+            </section>
 
-    <h4>5. Asistente virtual</h4>
-    <ul>
-        <li>Ingresa a “Chat de Ayuda”.</li>
-        <li>Escribe tu consulta (ej. “licencia”, “error”).</li>
-    </ul>
+        <section id="exportar" class="manual-section">
+            <h4>Sección E — Historial y exportaciones</h4>
+            <ol>
+        <li>Historial: guarda búsquedas recientes con fecha; útil para repetir consultas.</li>
+        <li>Exportar a Excel: los administradores pueden exportar resultados (archivo con columnas claramente separadas y formato listo para análisis).</li>
+        <li>En la ficha de detalle hay una opción para exportar la partida individual en PDF (si tu rol lo permite).</li>
+    </ol>
+        </section>
 
-    <h4>6. Licencia</h4>
-    <p>Tu licencia debe estar activa para usar el sistema. Si aparece el mensaje “Licencia Expirada”, contacta al administrador.</p>
+        <section id="licencias" class="manual-section">
+            <h4>Sección F — Licencias y acceso</h4>
+            <ol>
+        <li>Las cuentas de prueba reciben licencia temporal de 7 días (incluyentes).</li>
+        <li>Revisa el panel de inicio para ver días restantes; el contador es inclusivo y se actualiza cada minuto.</li>
+        <li>Si tu licencia expiró, contacta soporte o al administrador para renovación.</li>
+    </ol>
+        </section>
 
-    <h4>7. Cerrar sesión</h4>
-    <p>Puedes cerrar sesión desde la parte superior derecha.</p>
+        <section id="soporte" class="manual-section">
+            <h4>Sección G — Soporte y ayuda</h4>
+            <ol>
+        <li>Asistente: usa <strong>Chat de Ayuda</strong> para preguntas rápidas (licencia, filtros, soporte).</li>
+        <li>Soporte: abre el formulario de Soporte desde el menú y adjunta capturas o ejemplos.</li>
+        <li>Manuales: además de este PDF/HTML, revisa el <strong>Manual Administrador</strong> (si eres admin) para procesos como importar Excel.</li>
+    </ol>
+        </section>
 
-    <h4> Recomendaciones finales</h4>
-    <ul>
-        <li>Usa palabras clave claras para buscar.</li>
-        <li>Mantén tu licencia al día.</li>
-        <li>Consulta este manual si tienes dudas.</li>
-        <li>Contacta al administrador en caso de errores.</li>
-    </ul>
+        <hr />
+        <p class="text-muted small">¿Quieres una versión PDF de este manual? Haz clic en <strong>Descargar PDF</strong> para obtener una copia imprimible con la misma estructura y formato amigable para impresión.</p>
 </div>
+<style>
+    /* Ajustes responsive: centrar y mejorar legibilidad en móviles */
+    @media (max-width: 600px) {
+        .manual-contenedor { padding: 1.25rem; margin: 2rem 1rem; }
+        .manual-contenedor h4 { font-size: 1.05rem; }
+    }
+
+    /* Secciones del manual y resaltado activo */
+    .manual-section { padding: 1rem 0.5rem; border-radius: 8px; margin-bottom: 1rem; }
+        /* color de resaltado ligeramente más intenso (azul claro) */
+        .manual-section.highlight { background: #cbeeff; box-shadow: 0 0 0 4px rgba(139,200,255,0.65) inset; transition: background 0.25s ease; }
+</style>
+
+<script>
+// Resalta y hace scroll suave a la sección del manual cuando se hace clic en el índice
+document.addEventListener('DOMContentLoaded', function(){
+    function clearHighlights(){
+        document.querySelectorAll('.manual-section.highlight').forEach(function(el){ el.classList.remove('highlight'); });
+    }
+
+    function highlightAndScroll(id){
+        var target = document.getElementById(id);
+        if(!target) return;
+        clearHighlights();
+        // añadir clase highlight a la sección
+        target.classList.add('highlight');
+        // desplazamiento suave con pequeño offset (si hay header fijo, ajustar aquí)
+        target.scrollIntoView({behavior:'smooth', block:'start'});
+        // actualizar hash sin jump adicional
+        try{ history.replaceState(null, null, '#'+id); }catch(e){}
+        // eliminar highlight automáticamente después de 6 segundos
+        window.setTimeout(function(){ try{ target.classList.remove('highlight'); }catch(e){} }, 6000);
+    }
+
+    // enlazar los links del índice
+    document.querySelectorAll('.manual-contenedor nav a[href^="#"]').forEach(function(a){
+        a.addEventListener('click', function(ev){ ev.preventDefault(); var href = (a.getAttribute('href')||'').replace('#',''); highlightAndScroll(href); });
+    });
+
+    // Si la página carga con hash, resaltar esa sección
+    if(location.hash){
+        var h = location.hash.replace('#','');
+        // esperar un tick para permitir que el render termine
+        setTimeout(function(){ highlightAndScroll(h); }, 120);
+    }
+});
+</script>
 {% endblock %}

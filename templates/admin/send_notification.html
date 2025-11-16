@@ -1,0 +1,36 @@
+{% extends 'admin/base_site.html' %}
+{% load i18n admin_urls static %}
+
+{% block content %}
+  <h1>Enviar notificación por correo</h1>
+  <p>Enviarás un correo a los siguientes usuarios seleccionados:</p>
+  <ul>
+    {% for u in queryset %}
+      <li>{{ u.username }} &lt;{{ u.email }}&gt;</li>
+    {% endfor %}
+  </ul>
+
+  <form method="post" style="margin-top:1em;">
+    {% csrf_token %}
+    <input type="hidden" name="post" value="yes" />
+    {% for u in queryset %}
+      <input type="hidden" name="_selected_action" value="{{ u.pk }}" />
+    {% endfor %}
+
+    <fieldset class="module aligned">
+      <div class="form-row">
+        <label for="id_subject">Asunto:</label>
+        <input type="text" name="subject" id="id_subject" style="width:60%;" required />
+      </div>
+      <div class="form-row" style="margin-top:1em;">
+        <label for="id_message">Mensaje:</label><br />
+        <textarea name="message" id="id_message" rows="8" style="width:80%;" required></textarea>
+      </div>
+    </fieldset>
+
+    <div class="buttons">
+      <input type="submit" value="Enviar" class="default" />
+      <a href="..">Cancelar</a>
+    </div>
+  </form>
+{% endblock %}

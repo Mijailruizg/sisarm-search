@@ -1,0 +1,202 @@
+{% extends "partidas/base.html" %}
+{% load static %}
+
+{% block extra_styles %}
+<style>
+  body.detalle-bg { background-image: url('{% static "img/fondo.jpg.png" %}'); background-size: cover; background-repeat: no-repeat; background-attachment: fixed; background-position: center; }
+  .fondo-blanco { background: rgba(255,255,255,0.92); border-radius: 12px; padding: 32px; margin-top: 40px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
+  .grafico-container { margin-bottom: 40px; background: #fff; border-radius: 10px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+</style>
+{% endblock %}
+
+{% block body_class %}detalle-bg{% endblock %}
+
+{% block content %}
+<div class="container fondo-blanco">
+    <h2 class="mb-4">Estadísticas de Aranceles</h2>
+    <ul class="nav nav-tabs" id="estadisticasTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="busquedas-tab" data-bs-toggle="tab" data-bs-target="#busquedas" type="button" role="tab" aria-controls="busquedas" aria-selected="true">Estadísticas de Búsquedas</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="reales-tab" data-bs-toggle="tab" data-bs-target="#reales" type="button" role="tab" aria-controls="reales" aria-selected="false">Estadísticas Reales</button>
+        </li>
+    </ul>
+    <div class="tab-content" id="estadisticasTabsContent">
+        <div class="tab-pane fade show active" id="busquedas" role="tabpanel" aria-labelledby="busquedas-tab">
+            <div class="row">
+                <div class="col-md-6 grafico-container">
+                    <div class="chart-title">Top 5 productos más buscados para importación</div>
+                    <canvas id="graficoBusquedasImportacion"></canvas>
+                </div>
+                <div class="col-md-6 grafico-container">
+                    <div class="chart-title">Top 5 productos más buscados para exportación</div>
+                    <canvas id="graficoBusquedasExportacion"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="tab-pane fade" id="reales" role="tabpanel" aria-labelledby="reales-tab">
+            <div class="row">
+                <div class="col-md-6 grafico-container">
+                    <div class="chart-title">Top 10 productos más importados (datos reales)</div>
+                    <canvas id="graficoImportados"></canvas>
+                </div>
+                <div class="col-md-6 grafico-container">
+                    <div class="chart-title">Top 10 productos más exportados (datos reales)</div>
+                    <canvas id="graficoExportados"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="tab-pane fade" id="promedios" role="tabpanel" aria-labelledby="promedios-tab">
+            <div class="row">
+                <div class="col-12 grafico-container">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="chart-title">Promedio de gravamen por capítulo</div>
+                        <form class="row g-2" method="get">
+                            <div class="col-auto">
+                                <input type="text" name="entidad_emite" class="form-control form-control-sm" placeholder="Entidad emisora" value="{{ filtros.entidad_emite }}">
+                            </div>
+                            <div class="col-auto">
+                                <input type="text" name="capitulos" class="form-control form-control-sm" placeholder="Capítulos (c1,c2)" value="{{ filtros.capitulos }}">
+                            </div>
+                            <div class="col-auto">
+                                <button class="btn btn-sm btn-primary">Aplicar</button>
+                            </div>
+                        </form>
+                    </div>
+                    <canvas id="graficoPromedios" height="100"></canvas>
+                </div>
+                <div class="col-12 mt-3">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Capítulo</th>
+                                    <th>Promedio de gravamen</th>
+                                    <th>Mínimo</th>
+                                    <th>Máximo</th>
+                                    <th>Total partidas</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for r in promedios %}
+                                <tr>
+                                    <td>{{ r.capitulo }}</td>
+                                    <td>{% if r.promedio is not None %}{{ r.promedio|floatformat:2 }}{% else %}<span class="text-muted">N/A</span>{% endif %}</td>
+                                    <td>{% if r.min is not None %}{{ r.min|floatformat:2 }}{% else %}<span class="text-muted">N/A</span>{% endif %}</td>
+                                    <td>{% if r.max is not None %}{{ r.max|floatformat:2 }}{% else %}<span class="text-muted">N/A</span>{% endif %}</td>
+                                    <td>{{ r.count }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="5">No existen datos disponibles para este criterio.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script id="promedios-data" type="application/json">{{ promedios_json|default:'[]'|safe }}</script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+    // Datos de ejemplo para estadísticas de búsquedas
+    const busquedasImportacion = [
+        {nombre: "Llamas (Lama lama)", cantidad: 25},
+        {nombre: "Guanacos (Lama guanicoe)", cantidad: 20},
+        {nombre: "Avestruz", cantidad: 15},
+        {nombre: "Abejas", cantidad: 12},
+        {nombre: "Carne de cerdo", cantidad: 10}
+    ];
+    const busquedasExportacion = [
+        {nombre: "Truchas", cantidad: 30},
+        {nombre: "Paiche (Arapaima gigas)", cantidad: 22},
+        {nombre: "Carne de llama", cantidad: 18},
+        {nombre: "Caballa", cantidad: 14},
+        {nombre: "Jurel", cantidad: 11}
+    ];
+
+    // Datos de ejemplo para estadísticas reales
+    const arancelesImportados = [
+        {nombre: "Carne de cerdo", cantidad: 100},
+        {nombre: "Carne de ovino", cantidad: 90},
+        {nombre: "Carne de llama", cantidad: 80},
+        {nombre: "Avestruz", cantidad: 75},
+        {nombre: "Abejas", cantidad: 70},
+        {nombre: "Caballa", cantidad: 65},
+        {nombre: "Jurel", cantidad: 60},
+        {nombre: "Truchas", cantidad: 55},
+        {nombre: "Paiche", cantidad: 50},
+        {nombre: "Guanacos", cantidad: 45}
+    ];
+    const arancelesExportados = [
+        {nombre: "Truchas", cantidad: 120},
+        {nombre: "Paiche (Arapaima gigas)", cantidad: 110},
+        {nombre: "Carne de llama", cantidad: 100},
+        {nombre: "Caballa", cantidad: 95},
+        {nombre: "Jurel", cantidad: 90},
+        {nombre: "Avestruz", cantidad: 85},
+        {nombre: "Abejas", cantidad: 80},
+        {nombre: "Carne de cerdo", cantidad: 75},
+        {nombre: "Carne de ovino", cantidad: 70},
+        {nombre: "Guanacos", cantidad: 65}
+    ];
+
+    function crearGraficoBar(canvasId, datos, color) {
+        const el = document.getElementById(canvasId);
+        if(!el) return; // canvas ausente
+        const ctx = el.getContext('2d');
+        return new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: datos.map(d => d.nombre),
+                datasets: [{
+                    label: 'Cantidad',
+                    data: datos.map(d => d.cantidad),
+                    backgroundColor: color,
+                    borderRadius: 6,
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false }, tooltip: { enabled: true } },
+                scales: { x: { title: { display: true, text: 'Producto' } }, y: { beginAtZero: true } }
+            }
+        });
+    }
+
+    crearGraficoBar('graficoBusquedasImportacion', busquedasImportacion, '#3498db');
+    crearGraficoBar('graficoBusquedasExportacion', busquedasExportacion, '#e67e22');
+    crearGraficoBar('graficoImportados', arancelesImportados, '#27ae60');
+    crearGraficoBar('graficoExportados', arancelesExportados, '#9b59b6');
+
+    // Promedios: usar datos del servidor si están presentes
+    const promediosEl = document.getElementById('promedios-data');
+    const promediosData = promediosEl ? JSON.parse(promediosEl.textContent) : [];
+    if(promediosData.length > 0 && document.getElementById('graficoPromedios')){
+        const labels = promediosData.map(function(p){ return p.capitulo; });
+        const values = promediosData.map(function(p){ return p.promedio !== null ? Number(p.promedio) : 0; });
+        new Chart(document.getElementById('graficoPromedios').getContext('2d'), {
+            type: 'bar',
+            data: { labels: labels, datasets: [{ label: 'Promedio de gravamen', data: values, backgroundColor: '#1abc9c' }] },
+            options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+        });
+    }
+    // Auto-submit de filtros en la sección de promedios (actualiza resultados automáticamente)
+    try{
+        const promediosForm = document.querySelector('.container .grafico-container form');
+        if(promediosForm){
+            promediosForm.querySelectorAll('input, select').forEach(function(el){
+                el.addEventListener('change', function(){ promediosForm.submit(); });
+            });
+        }
+    }catch(e){ console.warn('auto-submit filtros promedios falló', e); }
+});
+</script>
+{% endblock %}

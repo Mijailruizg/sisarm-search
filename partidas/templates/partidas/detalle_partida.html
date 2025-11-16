@@ -1,9 +1,10 @@
 {% extends "partidas/base.html" %}
+{% load static %}
 
 {% block extra_styles %}
 <style>
     body.detalle-bg {
-        background-image: url('https://sisarm.com/wp-content/uploads/2021/11/19-191450_import-and-export-1024x576.jpeg');
+        background-image: url('{% static "img/fondo.jpg.png" %}');
         background-size: cover;
         background-repeat: no-repeat;
         background-attachment: fixed;
@@ -15,29 +16,12 @@
         padding: 2rem;
         border-radius: 10px;
         box-shadow: 0 0 10px rgba(0,0,0,0.2);
-        max-width: 900px;
-        margin: 50px auto;
+        max-width: 1100px;
+        margin: 30px auto;
     }
 
-    h2 {
-        text-align: center;
-        font-weight: bold;
-        margin-bottom: 30px;
-    }
-
-    table th {
-        background-color: #f1f1f1;
-        width: 30%;
-    }
-
-    table td {
-        background-color: #ffffff;
-    }
-
-    .btn-secondary {
-        display: block;
-        margin: 30px auto 0 auto;
-    }
+    .table thead th { background:#f8f9fa; }
+    .table td, .table th { vertical-align: middle; }
 </style>
 {% endblock %}
 
@@ -45,34 +29,141 @@
 
 {% block content %}
 <div class="detalle-container">
-    <h2>Detalle de Partida Arancelaria</h2>
-    <table class="table table-striped table-bordered mt-3">
-        <tr>
-            <th>Código</th>
-            <td>{{ partida.codigo|default:"No especificado" }}</td>
-        </tr>
-        <tr>
-            <th>Descripción</th>
-            <td>{{ partida.descripcion|default:"No especificado" }}</td>
-        </tr>
-        <tr>
-            <th>Gravamen</th>
-            <td>{{ partida.gravamen|default:"No especificado" }}</td>
-        </tr>
-        <tr>
-            <th>Permisos</th>
-            <td>{{ partida.permisos|default:"No especificado" }}</td>
-        </tr>
-        <tr>
-            <th>Subpartidas</th>
-            <td>{{ partida.subpartida|default:"No especificado" }}</td>
-        </tr>
-        <tr>
-            <th>Referencia Legal</th>
-            <td>{{ partida.disp_legal|default:"No especificado" }}</td>
-        </tr>
-    </table>
+    {% if load_error %}
+        <div class="alert alert-danger">{{ load_error }}</div>
+        <div class="mb-3"><a class="btn btn-primary" href="{% url 'buscar_partidas' %}">Volver a búsqueda</a></div>
+    {% else %}
+    <div class="d-flex justify-content-between align-items-start mb-3">
+        <div>
+            <h2 class="mb-1">{{ partida.codigo }} — {{ partida.descripcion|truncatechars:120 }}</h2>
+            <div class="text-muted">Capítulo: <strong>{{ partida.capitulo }}</strong></div>
+        </div>
+        <div class="text-end">
+            <span class="badge bg-primary" style="font-size:1rem; padding:0.6rem 0.9rem;">SISARM Search</span>
+        </div>
+    </div>
 
-    <a class="btn btn-secondary" href="{% url 'buscar_partidas' %}">Volver a la búsqueda</a>
+    <div class="row">
+        <div class="col-md-8">
+            <div class="table-responsive mb-3" style="background:#fff; padding:0.75rem; border-radius:8px;">
+                <table class="table table-bordered table-sm mb-0" style="white-space:nowrap;">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Capítulo</th>
+                            <th>Partida</th>
+                            <th>Código</th>
+                            <th>Descripción</th>
+                            <th>Gravamen</th>
+                            <th>ICE / IEHD</th>
+                            <th>Unidad de Medida</th>
+                            <th>Despacho Frontera</th>
+                            <th>Tipo Documento</th>
+                            <th>Entidad que Emite</th>
+                            <th>Disposición Legal</th>
+                            <th>ACE 36/47 (VEN)</th>
+                            <th>ACE 22 (CHI/PROT)</th>
+                            <th>ACE 66 (México)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>{{ partida.capitulo|default:"" }}</td>
+                            <td>{{ partida.partida|default:"" }}</td>
+                            <td>{{ partida.codigo|default:"" }}</td>
+                            <td style="max-width:400px; white-space:normal;">{{ partida.descripcion|default:"" }}</td>
+                            <td>{{ partida.gravamen|default:"" }}</td>
+                            <td>{{ partida.ice_iehd|default:"" }}</td>
+                            <td>{{ partida.unidad_medida|default:"" }}</td>
+                            <td>{{ partida.despacho_frontera|default:"" }}</td>
+                            <td>{{ partida.tipo_documento|default:"" }}</td>
+                            <td>{{ partida.entidad_emite|default:"" }}</td>
+                            <td style="max-width:300px; white-space:normal;">{{ partida.disp_legal|default:referencia_text|default:"" }}</td>
+                            <td>{{ partida.can_ace36_ace47_ven|default:"" }}</td>
+                            <td>{{ ace22_chi|default:"N/A" }}</td>
+                            <td>{{ ace22_prot|default:"N/A" }}</td>
+                            <td>{{ partida.ace66_mexico|default:"" }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="mt-3">
+                <h5>Referencias / Documentos asociados</h5>
+                {% if referencias %}
+                    <ul class="list-unstyled">
+                        {% for ref in referencias %}
+                            <li class="mb-2">
+                                <div><strong>{{ ref.titulo|default:ref.numero_resolucion }}</strong></div>
+                                <div class="small text-muted">{{ ref.fecha_norma|default:"" }}</div>
+                                <div class="mt-1">
+                                    {% if ref.archivo %}
+                                        <a class="btn btn-sm btn-outline-primary" href="{{ ref.archivo.url }}">Descargar</a>
+                                    {% else %}
+                                        <span class="text-muted">Documento no disponible</span>
+                                        <a class="btn btn-sm btn-link" href="{% url 'solicitar_ayuda_documento' ref.id %}">Solicitar ayuda</a>
+                                    {% endif %}
+                                </div>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    {% if referencia_text %}
+                        <p>{{ referencia_text }}</p>
+                        <div class="small text-muted">
+                            {% if referencia_numero %}Núm: <strong>{{ referencia_numero }}</strong> · {% endif %}
+                            {% if referencia_fecha %}Año: <strong>{{ referencia_fecha }}</strong>{% endif %}
+                        </div>
+                        <div class="mt-2">
+                            <a class="btn btn-outline-primary btn-sm" href="{% url 'soporte' %}?asunto=Documento+partida+{{ partida.codigo }}">Solicitar ayuda / documento</a>
+                        </div>
+                    {% else %}
+                        <div class="text-muted">Referencia legal no disponible.</div>
+                        <div class="mt-2">
+                            <a class="btn btn-outline-primary btn-sm" href="{% url 'soporte' %}?asunto=Referencia+no+disponible+{{ partida.codigo }}">Solicitar ayuda</a>
+                        </div>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="p-3 text-center" style="background:linear-gradient(180deg,#ffffff,#f7fbff); border-radius:8px;">
+                <h6 class="text-muted">Acciones</h6>
+                <p class="mb-1"><strong>{{ partida.codigo }}</strong></p>
+                <p class="mb-2">{{ partida.descripcion|truncatechars:120 }}</p>
+                <a id="backToSearchBtn" class="btn btn-primary w-100 mb-2" href="{% url 'buscar_partidas' %}">Volver a búsqueda</a>
+                <a class="btn btn-outline-secondary w-100 mb-2" href="{% url 'historial_buscador' %}">Ver mi historial</a>
+                <a class="btn btn-outline-success w-100 mb-2" href="{% url 'soporte' %}">Contactar Soporte</a>
+                <!-- Botón Exportar PDF -->
+                <a class="btn btn-outline-danger w-100" href="?export=pdf" target="_blank">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-file-pdf me-1" viewBox="0 0 16 16">
+                        <path d="M4 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2zm0 1h8a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1"/>
+                        <path d="M4.603 12.087a.8.8 0 0 1-.438-.42c-.195-.388-.13-.776.08-1.102.198-.307.526-.568.897-.787a7.7 7.7 0 0 1 1.482-.645 20 20 0 0 0 1.062-2.227 7.3 7.3 0 0 1-.43-1.295c-.086-.4-.119-.796-.046-1.136.075-.354.274-.672.65-.823.192-.077.4-.12.602-.077a.7.7 0 0 1 .477.365c.088.164.12.356.127.538.007.187-.012.395-.047.614-.084.51-.27 1.134-.52 1.794a10.95 10.95 0 0 0 .98 1.686 5.7 5.7 0 0 1 1.334.05c.364.065.734.195.96.465.12.144.193.32.2.518.007.192-.047.382-.138.563a1.04 1.04 0 0 1-.354.416.86.86 0 0 1-.51.138c-.331-.014-.654-.196-.933-.417a5.71 5.71 0 0 1-.911-.95 11.6 11.6 0 0 0-1.997.406 11.3 11.3 0 0 1-1.021 1.51c-.29.35-.608.655-.926.787a.8.8 0 0 1-.58.029zm1.379-1.901q-.25.115-.459.238c-.328.194-.541.383-.647.547-.094.145-.096.25-.04.361q.016.032.026.044l.035-.012c.137-.056.355-.235.635-.572a8.18 8.18 0 0 0 .45-.606zm1.64-1.33a13 13 0 0 1 1.01-.193 12 12 0 0 1-.51-.858 21 21 0 0 1-.5 1.05zm2.446.45q.226.244.435.41c.24.19.407.253.498.256a.1.1 0 0 0 .07-.015.31.31 0 0 0 .094-.125.44.44 0 0 0 .059-.2.1.1 0 0 0-.026-.063c-.052-.062-.2-.152-.518-.209a4 4 0 0 0-.612-.053zM8.078 5.8a7 7 0 0 0 .2-.828q.046-.282.038-.465a.6.6 0 0 0-.032-.198.5.5 0 0 0-.145.04c-.087.035-.158.106-.196.283-.04.192-.03.469.046.822q.036.167.088.346z"/>
+                    </svg>
+                    Exportar PDF
+                </a>
+            </div>
+
+            <div class="mt-3 p-3" style="background:#fff; border-radius:8px;">
+                <h6 class="text-muted">Metadatos</h6>
+                <ul class="list-unstyled small mb-0">
+                    <li>Capítulo: {{ partida.capitulo }}</li>
+                    <li>Partida: {{ partida.partida }}</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    {% endif %}
 </div>
 {% endblock %}
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+    var btn = document.getElementById('backToSearchBtn');
+    if(btn){
+        btn.addEventListener('click', function(ev){
+            try{ ev.preventDefault(); history.back(); }catch(e){ /* si falla, dejar que el enlace normal navegue */ }
+        });
+    }
+});
+</script>

@@ -1,29 +1,32 @@
 {% extends "partidas/base.html" %}
+{% load static %}
 
-{% block content %}
+{% block extra_styles %}
 <style>
-    body {
-        background-image: url('https://sisarm.com/wp-content/uploads/2021/11/19-191450_import-and-export-1024x576.jpeg');
+    body.detalle-bg {
+        background-image: url('{% static "img/fondo.jpg.png" %}');
         background-size: cover;
         background-repeat: no-repeat;
         background-attachment: fixed;
+        background-position: center;
     }
 
     .chat-container {
         max-width: 800px;
         margin: 4rem auto;
-        background: rgba(255, 255, 255, 0.95);
+        background: rgba(255,255,255,0.97);
         border-radius: 20px;
-        box-shadow: 0 0 30px rgba(0, 0, 0, 0.25);
+        box-shadow: 0 0 30px rgba(0,0,0,0.27);
         padding: 2.5rem;
+        animation: fadeInUp 0.4s ease;
     }
 
     .chat-title {
-        font-size: 2.2rem;
+        font-size: 2.3rem;
         text-align: center;
         margin-bottom: 2rem;
         font-weight: bold;
-        color: #2c2c2c;
+        color: #1f1f1f;
     }
 
     .chat-wrapper {
@@ -47,31 +50,16 @@
     }
 
     .chat-user {
-        background-color: #dceeff;
+        background-color: #cfe4ff;
         align-self: flex-end;
-        margin-left: auto;
     }
 
     .chat-bot {
-        background-color: #e1f8e9;
+        background-color: #e3fbea;
         align-self: flex-start;
-        margin-right: auto;
-        padding-left: 1.2rem;
     }
 
-    /*Elimina márgenes de contenido que viene desde respuesta */
-    .chat-bot * {
-        margin: 0 !important;
-        padding: 0 !important;
-        line-height: 1.4 !important;
-    }
-
-    .input-group input {
-        border-radius: 12px;
-        font-size: 1rem;
-    }
-
-    .input-group .btn {
+    .input-group input, .input-group .btn {
         border-radius: 12px;
         font-size: 1rem;
     }
@@ -80,137 +68,334 @@
         margin-top: 1rem;
         display: flex;
         flex-wrap: wrap;
-        gap: 0.5rem;
+        gap: 0.4rem;
     }
 
-    .suggestions .badge {
-        background-color: #444;
+    .badge {
+        background-color: #333;
         color: white;
         padding: 0.4rem 0.9rem;
         border-radius: 12px;
-        font-size: 0.9rem;
         cursor: pointer;
-        user-select: none;
-        transition: background-color 0.2s;
+        transition: 0.2s;
     }
 
-    .suggestions .badge:hover {
-        background-color: #000;
+    .badge:hover {
+        background-color: black;
     }
 
     @keyframes fadeInUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
+        from {opacity:0; transform: translateY(20px);}
+        to {opacity:1; transform:translateY(0);}
     }
 
     .typing-loader {
         display: flex;
         gap: 6px;
-        margin-top: 0.5rem;
-        margin-left: 8px;
+        animation: fadeInUp .2s ease-in-out;
     }
 
     .typing-loader span {
-        width: 8px;
-        height: 8px;
+        width: 8px; height: 8px;
         background-color: #888;
         border-radius: 50%;
         animation: bounce 0.6s infinite alternate;
     }
 
-    .typing-loader span:nth-child(2) {
-        animation-delay: 0.2s;
-    }
-
-    .typing-loader span:nth-child(3) {
-        animation-delay: 0.4s;
-    }
+    .typing-loader span:nth-child(2) {animation-delay: 0.2s;}
+    .typing-loader span:nth-child(3) {animation-delay: 0.4s;}
 
     @keyframes bounce {
-        to {
-            transform: translateY(-6px);
-        }
+        to {transform: translateY(-6px);}
     }
 </style>
+{% endblock %}
 
+{% block body_class %}detalle-bg{% endblock %}
+
+{% block content %}
 <div class="chat-container">
     <h2 class="chat-title">Asistente Virtual</h2>
 
     <div class="chat-wrapper" id="chatWrapper">
+        
         {% if mensaje %}
-            <div class="chat-bubble chat-user"><strong>Tú:</strong> {{ mensaje }}</div>
+        <div class="chat-bubble chat-user"><strong>Tú:</strong> {{ mensaje }}</div>
         {% endif %}
 
         {% if respuesta %}
-            <div class="chat-bubble chat-bot" id="respuestaBot" style="display:none;">
-                <div style="margin-bottom: 0.4rem; font-weight: bold;">Asistente</div>
-                <div style="margin-bottom: 0.5rem;" class="respuesta-contenido">{{ respuesta|safe }}</div>
+        <div class="chat-bubble chat-bot" id="respuestaBot" style="display:none;">
+            <strong>Asistente</strong><br><br>
+            <div class="respuesta-contenido">{{ respuesta|safe }}</div>
 
-                {% if sugerencias %}
-                <div class="suggestions">
-                    {% for sugerencia in sugerencias %}
-                        <span class="badge" onclick="insertarEjemplo('{{ sugerencia }}')">{{ sugerencia }}</span>
-                    {% endfor %}
-                </div>
-                {% endif %}
+            {% if sugerencias %}
+            <div class="suggestions">
+                {% for sugerencia in sugerencias %}
+                    <span class="badge" data-text="{{ sugerencia|escapejs }}">{{ sugerencia }}</span>
+                {% endfor %}
             </div>
-            <div id="typingIndicator" class="chat-bubble chat-bot">
-                <div class="typing-loader">
-                    <span></span><span></span><span></span>
-                </div>
-            </div>
-        {% elif mensaje %}
-            <div class="chat-bubble chat-bot">
-                <div style="margin-bottom: 0.4rem; font-weight: bold;">Asistente</div>
-                <div style="margin-bottom: 0.5rem;">Lo siento, no entendí tu consulta. Prueba con temas como:</div>
-                <div class="suggestions">
-                    <span class="badge" onclick="insertarEjemplo('Buscar partida')">Buscar partida</span>
-                    <span class="badge" onclick="insertarEjemplo('Ver manuales')">Ver manuales</span>
-                    <span class="badge" onclick="insertarEjemplo('Mi licencia')">Mi licencia</span>
-                    <span class="badge" onclick="insertarEjemplo('Contactar soporte')">Contactar soporte</span>
-                </div>
-            </div>
+            {% endif %}
+        </div>
+
+        <div id="typingIndicator" class="chat-bubble chat-bot">
+            <div class="typing-loader"><span></span><span></span><span></span></div>
+        </div>
         {% endif %}
     </div>
+        <!-- Modal Bootstrap: acción sugerida por el servidor -->
+        <div class="modal fade" id="actionModal" tabindex="-1" aria-labelledby="actionModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="actionModalLabel">Acción sugerida</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="actionTextModal" style="font-weight:600; color:#333;"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" id="actionModalOpenBtn" class="btn btn-primary">Abrir</button>
+                        <button type="button" id="actionModalIgnoreBtn" class="btn btn-secondary" data-bs-dismiss="modal">Ignorar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-    <form method="get" class="mt-4" onsubmit="return validarChat();">
+    <form id="chatForm" method="post" class="mt-4" onsubmit="return false;">
+        {% csrf_token %}
         <div class="input-group">
-            <input id="campoMensaje" type="text" name="mensaje" class="form-control" placeholder="Escribe tu mensaje..." value="{{ mensaje }}" autofocus>
-            <button class="btn btn-primary">Enviar</button>
+            <input id="campoMensaje" type="text" name="mensaje"
+                class="form-control"
+                placeholder="Escribe algo, por ejemplo: ‘hola’ 😄" autofocus>
+            <button id="btnEnviar" class="btn btn-primary">Enviar</button>
         </div>
     </form>
 </div>
 
+<div id="serverActionData" data-action='{{ action_json|escapejs }}' style="display:none;"></div>
 <script>
-    function validarChat() {
-        const campo = document.getElementById("campoMensaje");
-        if (!campo.value.trim()) {
-            campo.focus();
-            return false;
+/* acción enviada desde el servidor cuando la página se renderiza (ej. abrir soporte) */
+var serverAction = null;
+
+function handleAction(action){
+    if(!action) return;
+    try{
+        if(action.open_support){ window.location.href = action.open_support; return; }
+        if(action.open_whatsapp){ window.open(action.open_whatsapp, '_blank'); return; }
+    }catch(e){ console.error('Error ejecutando action:', e); }
+}
+
+function showActionPanel(action){
+    if(!action) return;
+    const textDiv = document.getElementById('actionTextModal');
+    let text = 'Acción sugerida';
+    try{
+        if(action.action_text) text = action.action_text;
+        else if(action.open_support) text = 'El asistente sugiere abrir la página de Soporte.';
+        else if(action.open_whatsapp) text = 'El asistente sugiere abrir WhatsApp para chatear con soporte.';
+    }catch(e){ console.error(e); }
+    textDiv.textContent = text;
+    const modalEl = document.getElementById('actionModal');
+    modalEl.dataset.action = JSON.stringify(action);
+    try{
+        if(window.bootstrap && typeof window.bootstrap.Modal === 'function'){
+            const m = new bootstrap.Modal(modalEl);
+            m.show(); modalEl._bs_instance = m; return;
         }
-        return true;
+    }catch(e){ console.warn('Bootstrap modal API no disponible, fallback a mostrar elemento'); }
+    modalEl.style.display = 'block';
+}
+
+function hideActionPanel(){
+    const modalEl = document.getElementById('actionModal'); if(!modalEl) return;
+    try{ if(modalEl._bs_instance){ modalEl._bs_instance.hide(); delete modalEl._bs_instance; return; } }catch(e){}
+    modalEl.style.display = 'none';
+}
+
+// Helper CSRF (leer cookie)
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function escapeHTML(s){
+    return String(s).replace(/[&<>\"']/g, function(m){ return {'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":"&#39;"}[m]; });
+}
+
+// Añadir burbujas al chat. si html=true se usa innerHTML (backend controla seguridad); por defecto escapa
+function appendBubble(text, who='bot', html=false){
+    const chat = document.getElementById('chatWrapper');
+    const div = document.createElement('div');
+    div.className = 'chat-bubble ' + (who === 'user' ? 'chat-user' : 'chat-bot');
+    if(who === 'user'){
+        div.innerHTML = `<strong>Tú:</strong> ${escapeHTML(text)}`;
+    }else{
+        if(html) div.innerHTML = `<strong>Asistente</strong><br><br><div class="respuesta-contenido">${text}</div>`;
+        else div.innerHTML = `<strong>Asistente</strong><br><br><div class="respuesta-contenido">${escapeHTML(text)}</div>`;
+    }
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+    return div;
+}
+
+function showErrorBubble(text){
+    const bubble = appendBubble(text, 'bot', false);
+    bubble.style.backgroundColor = '#ffd6d6';
+    bubble.style.border = '1px solid #ff9b9b';
+}
+
+async function sendMessageToApi(message, {stream=false, publico=false, timeout=30000} = {}){
+    const url = '{% url "api_chat_help" %}';
+    const csrftoken = getCookie('csrftoken');
+    const body = new URLSearchParams();
+    body.append('message', message);
+    if(stream) body.append('stream', '1');
+    if(publico) body.append('public', '1');
+
+    const controller = new AbortController();
+    const id = setTimeout(()=> controller.abort(), timeout);
+
+    try{
+        const resp = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': csrftoken },
+            body: body.toString(),
+            credentials: 'same-origin',
+            signal: controller.signal
+        });
+        clearTimeout(id);
+        if(stream) return resp;
+        return resp.json();
+    }catch(e){
+        clearTimeout(id);
+        throw e;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('chatForm');
+    const campo = document.getElementById('campoMensaje');
+    const btn = document.getElementById('btnEnviar');
+
+    async function doSend(){
+        const text = campo.value.trim();
+        if(!text) return;
+        // mostrar mensaje del usuario
+        appendBubble(text, 'user');
+        campo.value = '';
+        btn.disabled = true; campo.disabled = true;
+        const typing = appendBubble('<div class="typing-loader"><span></span><span></span><span></span></div>', 'bot', true);
+
+        try{
+            const resp = await sendMessageToApi(text, {stream: true});
+            const ctype = resp.headers && resp.headers.get ? resp.headers.get('content-type') : '';
+                if(ctype && ctype.indexOf('application/json') !== -1){
+                const data = await resp.json();
+                typing.remove();
+                if(data.ok){
+                    appendBubble(data.reply, 'bot', true);
+                    if(data.action){
+                        try{
+                            if(data.action.auto_open){ handleAction(data.action); }
+                            else showActionPanel(data.action);
+                        }catch(e){ console.error('action handling error', e); showActionPanel(data.action); }
+                    }
+                }else showErrorBubble('Error: ' + (data.error || 'respuesta inválida'));
+                return;
+            }
+            if(!resp.ok){ typing.remove(); showErrorBubble('Error: respuesta inválida del servidor.'); return; }
+
+            // procesar stream SSE-like
+            const reader = resp.body.getReader();
+            const decoder = new TextDecoder();
+            let partial = '';
+            const botDiv = appendBubble('', 'bot', false);
+            const contentDiv = botDiv.querySelector('.respuesta-contenido');
+            contentDiv.innerHTML = '';
+
+            while(true){
+                const {done, value} = await reader.read();
+                if(done) break;
+                const chunk = decoder.decode(value, {stream: true});
+                partial += chunk;
+                const parts = partial.split('\n\n');
+                for(let i=0;i<parts.length-1;i++){
+                    const part = parts[i];
+                    const clean = part.replace(/^data:\s*/, '');
+                    if(!clean) continue;
+                        if(clean.startsWith('__ACTION__')){
+                            try{
+                                const jsonPart = clean.replace(/^__ACTION__/, '');
+                                const actionObj = JSON.parse(jsonPart);
+                                if(actionObj && actionObj.auto_open){
+                                    try{ handleAction(actionObj); }catch(e){ showActionPanel(actionObj); }
+                                }else{
+                                    showActionPanel(actionObj);
+                                }
+                            }catch(e){ console.warn('No se pudo parsear action stream', e); }
+                            continue;
+                    }
+                    // Añadir texto al contenido; si detectamos tags básicos dejamos innerHTML
+                    if(/<\/?[a-z][\s\S]*>/i.test(clean)){
+                        contentDiv.innerHTML += clean;
+                    }else{
+                        contentDiv.textContent += clean;
+                    }
+                    botDiv.scrollIntoView();
+                }
+                partial = parts[parts.length-1];
+            }
+            if(partial.trim()){
+                const clean = partial.replace(/^data:\s*/, '');
+                if(/<\/?[a-z][\s\S]*>/i.test(clean)) contentDiv.innerHTML += clean; else contentDiv.textContent += clean;
+            }
+            typing.remove();
+        }catch(e){
+            typing.remove();
+            console.error(e);
+            if(e.name === 'AbortError') showErrorBubble('Tiempo de espera agotado. Intenta nuevamente.');
+            else showErrorBubble('Error de conexión con la API del asistente.');
+        }finally{
+            btn.disabled = false; campo.disabled = false; campo.focus();
+        }
     }
 
-    function insertarEjemplo(texto) {
-        const campo = document.getElementById("campoMensaje");
-        campo.value = texto;
-        campo.focus();
+    btn.addEventListener('click', async (ev) => { ev.preventDefault(); await doSend(); });
+    campo.addEventListener('keydown', async (ev) => { if(ev.key === 'Enter' && !ev.shiftKey){ ev.preventDefault(); await doSend(); } });
+
+    // scroll inicial y mostrar respuesta renderizada si existe
+    const chat = document.getElementById('chatWrapper'); chat.scrollTop = chat.scrollHeight;
+    const respuestaBot = document.getElementById('respuestaBot');
+    const typingIndicator = document.getElementById('typingIndicator');
+    if (respuestaBot && typingIndicator) {
+        setTimeout(() => { typingIndicator.style.display = 'none'; respuestaBot.style.display = 'block'; chat.scrollTop = chat.scrollHeight; }, 900);
     }
 
-    document.addEventListener("DOMContentLoaded", () => {
-        const chat = document.getElementById("chatWrapper");
-        chat.scrollTop = chat.scrollHeight;
+    document.querySelectorAll('.badge').forEach(b => { b.addEventListener('click', async () => { document.getElementById('campoMensaje').value = b.dataset.text; try{ await doSend(); }catch(e){ console.error('Error auto-enviando sugerencia', e); } }); });
 
-        const respuestaBot = document.getElementById("respuestaBot");
-        const typingIndicator = document.getElementById("typingIndicator");
+    // Mostrar modal si el servidor envió una acción al renderizar
+    try{ const serverActionEl = document.getElementById('serverActionData'); if(serverActionEl && serverActionEl.dataset && serverActionEl.dataset.action){ const raw = serverActionEl.dataset.action; if(raw && raw !== 'null'){ try{ serverAction = JSON.parse(raw); }catch(e){ console.warn('No se pudo parsear serverAction', e); } } } }catch(e){}
 
-        if (respuestaBot && typingIndicator) {
-            setTimeout(() => {
-                typingIndicator.style.display = "none";
-                respuestaBot.style.display = "block";
-                chat.scrollTop = chat.scrollHeight;
-            }, 1200);
-        }
-    });
+    if(typeof serverAction !== 'undefined' && serverAction){
+        try{ if(serverAction.auto_open) handleAction(serverAction); else showActionPanel(serverAction); }catch(e){ showActionPanel(serverAction); }
+    }
+
+    // Wiring botones del modal de acción
+    const openBtn = document.getElementById('actionModalOpenBtn');
+    const ignoreBtn = document.getElementById('actionModalIgnoreBtn');
+    const modalEl = document.getElementById('actionModal');
+    if(openBtn){ openBtn.addEventListener('click', () => { try{ const action = JSON.parse(modalEl.dataset.action || '{}'); handleAction(action); }catch(e){ console.error('action parse error', e) } hideActionPanel(); }); }
+    if(ignoreBtn){ ignoreBtn.addEventListener('click', () => { hideActionPanel(); }); }
+});
 </script>
 {% endblock %}

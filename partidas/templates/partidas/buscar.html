@@ -1,21 +1,125 @@
 {% extends "partidas/base.html" %}
+{% load static %}
 
-{% block content %}
+{% block extra_styles %}
 <style>
-    body {
-        background-image: url('https://sisarm.com/wp-content/uploads/2021/11/19-191450_import-and-export-1024x576.jpeg');
+    body.detalle-bg {
+        background-image: url('{% static "img/fondo.jpg.png" %}');
         background-size: cover;
         background-repeat: no-repeat;
         background-attachment: fixed;
+        background-position: center;
     }
-    .buscar-container {
-        max-width: 1200px;
-        margin: auto;
-        background-color: #ffffffdd;
-        padding: 2rem;
-        border-radius: 10px;
+    .detalle-container, .buscar-container { 
+        background-color: rgba(255,255,255,0.95); 
+        padding: 1rem; 
+        border-radius: 8px; 
+    }
+    
+    /* Estilos para autocompletado */
+    #search-suggestions {
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+    
+    .suggestion-item {
+        padding: 8px 12px;
+        cursor: pointer;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .suggestion-item:last-child {
+        border-bottom: none;
+    }
+    
+    .suggestion-item:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .suggestion-code {
+        font-weight: bold;
+        color: #0d6efd;
+    }
+    
+    .suggestion-desc {
+        color: #6c757d;
+        font-size: 0.9em;
+        margin-left: 8px;
+    }
+
+    /* Botón de exportar PDF */
+    .btn-export-pdf {
+        position: absolute;
+        right: 10px;
+        top: 10px;
+        z-index: 1;
     }
 </style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.getElementById('search-term');
+        const suggestionsContainer = document.getElementById('search-suggestions');
+        let debounceTimer;
+
+        searchInput.addEventListener('input', function() {
+            clearTimeout(debounceTimer);
+            const query = this.value.trim();
+            
+            if (query.length < 1) {
+                suggestionsContainer.style.display = 'none';
+                return;
+            }
+
+            debounceTimer = setTimeout(() => {
+                fetch(`{% url 'api_autocomplete' %}?q=${encodeURIComponent(query)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.results && data.results.length > 0) {
+                            suggestionsContainer.innerHTML = data.results
+                                .map(item => `
+                                    <div class="suggestion-item" data-codigo="${item.codigo}">
+                                        <span class="suggestion-code">${item.codigo}</span>
+                                        <span class="suggestion-desc">${item.descripcion || ''}</span>
+                                    </div>
+                                `)
+                                .join('');
+                            suggestionsContainer.style.display = 'block';
+
+                            // Manejar clics en sugerencias
+                            document.querySelectorAll('.suggestion-item').forEach(item => {
+                                item.addEventListener('click', function() {
+                                    searchInput.value = this.dataset.codigo;
+                                    suggestionsContainer.style.display = 'none';
+                                    searchInput.form.submit();
+                                });
+                            });
+                        } else {
+                            suggestionsContainer.style.display = 'none';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error en autocompletado:', error);
+                        suggestionsContainer.style.display = 'none';
+                    });
+            }, 100);
+        });
+
+        // Cerrar sugerencias al hacer clic fuera
+        document.addEventListener('click', function(e) {
+            if (!searchInput.contains(e.target) && !suggestionsContainer.contains(e.target)) {
+                suggestionsContainer.style.display = 'none';
+            }
+        });
+    });
+</script>
+{% endblock %}
+
+{% block body_class %}detalle-bg{% endblock %}
+
+{% block content %}
 
 <div class="buscar-container">
     <h2 class="text-center mb-4">Buscar Partidas Arancelarias</h2>
@@ -23,7 +127,15 @@
     <form method="get">
         <div class="row g-2 mb-3 justify-content-center">
             <div class="col-md-6">
-                <input type="text" name="termino" class="form-control" placeholder="Buscar por código o descripción..." value="{{ request.GET.termino }}">
+                <div class="position-relative">
+                    <input type="text" id="search-term" name="termino" class="form-control" 
+                           placeholder="Buscar por código o descripción..." 
+                           value="{{ request.GET.termino }}"
+                           autocomplete="off">
+                    <div id="search-suggestions" class="position-absolute w-100 mt-1 rounded shadow-sm" 
+                         style="display:none;z-index:1000;max-height:300px;overflow-y:auto;background:white;">
+                    </div>
+                </div>
             </div>
             <div class="col-md-3">
                 <button class="btn btn-secondary w-100" type="button" data-bs-toggle="collapse" data-bs-target="#filtrosCollapse" aria-expanded="false" aria-controls="filtrosCollapse">
@@ -35,14 +147,22 @@
             </div>
         </div>
 
+        <div class="mb-2 text-end">
+            <small>¿Necesitas ayuda? <a href="{% url 'manuales' %}?q=buscador">Ver Guía del Buscador</a></small>
+        </div>
+
         <div class="collapse mb-4" id="filtrosCollapse">
             <div class="card card-body">
                 <div class="row g-2">
                     <div class="col-md-3">
                         <select name="capitulo" class="form-select">
-                            <option value="">Capítulo</option>
-                            {% for cap in capitulos %}
-                                <option value="{{ cap }}" {% if filtros.capitulo == cap %}selected{% endif %}>{{ cap }}</option>
+                            <option value="">Todos los capítulos</option>
+                            {% for orig, label, numero in capitulos %}
+                                {% if numero %}
+                                    <option value="{{ orig }}" {% if filtros.capitulo == orig %}selected{% endif %}>Capítulo {{ numero }}</option>
+                                {% else %}
+                                    <option value="{{ orig }}" {% if filtros.capitulo == orig %}selected{% endif %}>{{ label }}</option>
+                                {% endif %}
                             {% endfor %}
                         </select>
                     </div>
@@ -95,28 +215,28 @@
                 <table class="table table-bordered table-striped">
                     <thead class="table-light">
                         <tr>
-                            <th>Partida</th>
-                            <th>Subpartida</th>
-                            <th>Código</th>
-                            <th>Descripción</th>
-                            <th>Gravamen</th>
-                            <th>ICE/IEHD</th>
-                            <th>Unidad de Medida</th>
-                            <th>Despacho Frontera</th>
-                            <th>Tipo Documento</th>
-                            <th>Entidad que Emite</th>
-                            <th>Disposición Legal</th>
-                            <th>ACE 36/47 (VEN)</th>
-                            <th>ACE 22 (CHI/PROT)</th>
-                            <th>ACE 66 (México)</th>
-                            <th>Capítulo</th>
+                        <th>Capítulo</th>
+                        <th>Partida</th>
+                        <th>Código</th>
+                        <th>Descripción de la Mercancía</th>
+                        <th>Gravamen</th>
+                        <th>ICE - IEHD</th>
+                        <th>Unidad de Medida</th>
+                        <th>Despacho en Frontera</th>
+                        <th>Tipo de Documento</th>
+                        <th>Entidad que Emite</th>
+                        <th>Disposición Legal</th>
+                        <th>Can ACE36 ACE47 (VEN)</th>
+                        <th>ACE22 CHI</th>
+                        <th>ACE22 PROT</th>
+                        <th>ACE66 (México)</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for partida in resultados %}
                         <tr>
+                            <td>{{ partida.capitulo }}</td>
                             <td>{{ partida.partida }}</td>
-                            <td>{{ partida.subpartida }}</td>
                             <td><a href="{% url 'detalle_partida' partida.id %}">{{ partida.codigo }}</a></td>
                             <td>{{ partida.descripcion_resaltada|safe }}</td>
                             <td>{{ partida.gravamen }}</td>
@@ -127,9 +247,9 @@
                             <td>{{ partida.entidad_emite }}</td>
                             <td>{{ partida.disp_legal }}</td>
                             <td>{{ partida.can_ace36_ace47_ven }}</td>
-                            <td>{{ partida.ace22_chi_prot }}</td>
+                            <td>{{ partida.ace22_chi|default:"N/A" }}</td>
+                            <td>{{ partida.ace22_prot|default:"N/A" }}</td>
                             <td>{{ partida.ace66_mexico }}</td>
-                            <td>{{ partida.capitulo }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>

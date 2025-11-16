@@ -1,0 +1,29 @@
+{% extends 'partidas/base.html' %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Consultas realizadas por despachantes</h2>
+    <p>Filtradas por rol que contenga: <strong>{{ rol_q }}</strong></p>
+    <table class="table table-sm table-hover mt-3">
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>Usuario</th>
+                <th>Término</th>
+                <th>Tipo</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in consultas %}
+            <tr>
+                <td>{{ c.fecha }}</td>
+                <td>{{ c.usuario.username }} ({{ c.usuario.rol.nombre }})</td>
+                <td>{{ c.termino_buscado }}</td>
+                <td>{{ c.tipo_busqueda }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4">No se encontraron consultas.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

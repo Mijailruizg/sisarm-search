@@ -1,0 +1,261 @@
+{% extends "admin/change_list.html" %}
+
+{% block content %}
+<style>
+/* Dark theme for admin stats panel */
+.stats-panel { margin-bottom: 18px; }
+.card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-top: 12px; }
+.card { background: #0b0f12; border: 1px solid rgba(255,255,255,0.06); padding: 12px; border-radius: 6px; display:flex; align-items:center; justify-content:space-between; color:#fff }
+.card-left { display:flex; align-items:center; gap:10px; }
+.badge { width:44px; height:44px; border-radius:6px; background:#111318; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:16px; color:#fff; }
+.product-title { font-weight:700; font-size:14px; color:#fff }
+.product-code { color:#9ca3af; font-size:12px }
+.chapter { color:#d1d5db; font-size:13px }
+.count { font-weight:700; font-size:16px; color:#fff }
+.stats-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.stats-actions .vTextField { width:220px; background:#0b0f12; border:1px solid rgba(255,255,255,0.06); color:#fff; padding:6px 8px; border-radius:4px; position:relative; }
+.stats-actions .button { background:#111827; color:#fff; border:1px solid rgba(255,255,255,0.04); padding:6px 10px; border-radius:4px; cursor:pointer; }
+.stats-actions .button:hover { background:#1a202c; }
+.no-data { color:#9ca3af; padding:8px 0; }
+.module.stats { padding: 12px; background:#071014; border:1px solid rgba(255,255,255,0.04); border-radius:6px; margin-bottom:16px; color:#fff }
+.admin-table { width:100%; border-collapse:collapse }
+.admin-table th, .admin-table td { padding:8px 10px; border:1px solid rgba(255,255,255,0.04); color:#fff }
+.admin-table thead th { background: rgba(255,255,255,0.02); }
+.visuallyhidden { position:absolute !important; height:1px; width:1px; overflow:hidden; clip:rect(1px, 1px, 1px, 1px); white-space:nowrap }
+
+/* Autocomplete styles */
+.autocomplete-list { position:absolute; background:#1a1f26; border:1px solid rgba(255,255,255,0.06); border-radius:4px; max-height:200px; overflow-y:auto; width:100%; z-index:1000; display:none; margin-top:2px; }
+.autocomplete-list.active { display:block; }
+.autocomplete-item { padding:8px; color:#fff; cursor:pointer; border-bottom:1px solid rgba(255,255,255,0.02); }
+.autocomplete-item:hover { background:rgba(255,255,255,0.06); }
+.input-wrapper { position:relative; }
+
+.loading { opacity:0.7; }
+.spinner { display:inline-block; width:14px; height:14px; border:2px solid rgba(255,255,255,0.1); border-top:2px solid #fff; border-radius:50%; animation:spin 0.6s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+</style>
+
+<!-- Filters arriba para facilitar uso -->
+<div class="module stats">
+  <form method="get" id="statsFilters" class="stats-actions" role="search">
+    {# Preserve other GET params so admin pagination/search isn't lost #}
+    {% for k, v in request.GET.items %}
+      {% if k != 'entidad_emite' and k != 'capitulos' %}
+        <input type="hidden" name="{{ k }}" value="{{ v }}" />
+      {% endif %}
+    {% endfor %}
+
+    <div class="input-wrapper">
+      <label for="entidad_emite" class="visuallyhidden">Entidad emisora</label>
+      <input id="entidad_emite" type="text" name="entidad_emite" placeholder="Entidad emisora" value="{{ stats_filters.entidad_emite }}" class="vTextField autocomplete-input" data-api="{% url 'api_autocomplete_entidades' %}" />
+      <div class="autocomplete-list" id="entidad_list"></div>
+    </div>
+
+    <div class="input-wrapper">
+      <label for="capitulos" class="visuallyhidden">Capítulos</label>
+      <input id="capitulos" type="text" name="capitulos" placeholder="Capítulos (c1,c2)" value="{{ stats_filters.capitulos }}" class="vTextField autocomplete-input" data-api="{% url 'api_autocomplete_capitulos' %}" />
+      <div class="autocomplete-list" id="capitulos_list"></div>
+    </div>
+
+    <button class="button" type="button" id="applyBtn">Aplicar</button>
+    <a href="{{ request.path }}" class="button">Limpiar</a>
+  </form>
+
+  <h2 style="margin-top:12px; margin-bottom:6px;">Estadísticas de gravamen por capítulo</h2>
+  <div id="statsContainer" style="position:relative;">
+    {% if chapter_stats %}
+      <div style="overflow:auto;">
+        <table class="admin-table" id="statsTable">
+          <thead>
+            <tr>
+              <th>Capítulo</th>
+              <th>Promedio</th>
+              <th>Mínimo</th>
+              <th>Máximo</th>
+              <th>Total partidas</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in chapter_stats %}
+            <tr>
+              <td>{{ s.capitulo }}</td>
+              <td>{{ s.promedio|floatformat:2 }}</td>
+              <td>{{ s.min|floatformat:2 }}</td>
+              <td>{{ s.max|floatformat:2 }}</td>
+              <td>{{ s.count }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="no-data" id="noDataMsg">No existen datos disponibles para este criterio.</div>
+    {% endif %}
+  </div>
+</div>
+
+<h1>{{ title }}</h1>
+<div class="card-grid">
+  {% for p in top_products %}
+  <div class="card">
+    <div class="card-left">
+      <div class="badge">{{ p.rank }}</div>
+      <div>
+        <div class="product-title">{{ p.descripcion }}</div>
+        <div class="product-code">{{ p.codigo }}</div>
+        <div class="chapter">{{ p.capitulo }}</div>
+      </div>
+    </div>
+    <div class="count">{{ p.total }}</div>
+  </div>
+  {% empty %}
+  <div class="no-data">No hay datos.</div>
+  {% endfor %}
+</div>
+
+<script>
+(function(){
+  'use strict';
+  
+  // Autocompletado robusto con getElementBy ID
+  const setupAutocomplete = (inputId, listId, apiUrl) => {
+    const input = document.getElementById(inputId);
+    const listContainer = document.getElementById(listId);
+    
+    if(!input || !listContainer) {
+      console.warn(`Autocomplete setup failed: input=${inputId}, list=${listId}`);
+      return;
+    }
+    
+    let timeout;
+    
+    input.addEventListener('input', function() {
+      clearTimeout(timeout);
+      const q = this.value.trim();
+      
+      // Si el campo está vacío, ocultar el dropdown
+      if(q.length < 1) {
+        listContainer.classList.remove('active');
+        return;
+      }
+      
+      // Extraer la última palabra si es el campo de capítulos (para búsqueda parcial)
+      let searchTerm = q;
+      if(inputId === 'capitulos') {
+        const parts = q.split(',');
+        searchTerm = parts[parts.length - 1].trim();
+      }
+      
+      timeout = setTimeout(function() {
+        fetch(apiUrl + '?q=' + encodeURIComponent(searchTerm))
+          .then(r => {
+            if(!r.ok) throw new Error(`HTTP ${r.status}`);
+            return r.json();
+          })
+          .then(data => {
+            const items = data.results || [];
+            
+            // Limpiar y renderizar items
+            listContainer.innerHTML = '';
+            if(items.length === 0) {
+              listContainer.classList.remove('active');
+              return;
+            }
+            
+            items.forEach(item => {
+              const div = document.createElement('div');
+              div.className = 'autocomplete-item';
+              div.textContent = item;
+              div.dataset.value = item;
+              
+              div.addEventListener('click', function(e) {
+                e.stopPropagation();
+                // Para capítulos, concatenar; para entidades, reemplazar
+                if(inputId === 'capitulos') {
+                  const current = input.value.trim();
+                  if(current) {
+                    const parts = current.split(',');
+                    parts[parts.length - 1] = item;
+                    input.value = parts.join(', ').trim();
+                  } else {
+                    input.value = item;
+                  }
+                } else {
+                  input.value = item;
+                }
+                listContainer.classList.remove('active');
+              });
+              
+              listContainer.appendChild(div);
+            });
+            
+            listContainer.classList.add('active');
+          })
+          .catch(err => {
+            console.error('Autocomplete error:', err);
+            listContainer.classList.remove('active');
+          });
+      }, 300);
+    });
+    
+    // Cerrar dropdown al hacer click fuera
+    document.addEventListener('click', function(e) {
+      if(!input.contains(e.target) && !listContainer.contains(e.target)) {
+        listContainer.classList.remove('active');
+      }
+    });
+  };
+  
+  // Inicializar autocompletados
+  setupAutocomplete('entidad_emite', 'entidad_list', '{% url "api_autocomplete_entidades" %}');
+  setupAutocomplete('capitulos', 'capitulos_list', '{% url "api_autocomplete_capitulos" %}');
+  
+  // AJAX para aplicar filtros sin recarga
+  const applyBtn = document.getElementById('applyBtn');
+  if(applyBtn) {
+    applyBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      const entidad = document.getElementById('entidad_emite').value.trim();
+      const capitulos = document.getElementById('capitulos').value.trim();
+      
+      // Mostrar loading
+      const statsContainer = document.getElementById('statsContainer');
+      statsContainer.innerHTML = '<div style="text-align:center; color:#9ca3af; padding:20px;"><span class="spinner"></span> Cargando...</div>';
+      
+      // Llamar AJAX
+      const url = '{% url "api_stats_by_chapter" %}?entidad_emite=' + encodeURIComponent(entidad) + '&capitulos=' + encodeURIComponent(capitulos);
+      fetch(url)
+        .then(r => {
+          if(!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.json();
+        })
+        .then(result => {
+          if(result.success) {
+            const data = result.data || [];
+            if(data.length === 0) {
+              statsContainer.innerHTML = '<div class="no-data">No existen datos disponibles para este criterio.</div>';
+            } else {
+              let html = '<div style="overflow:auto;"><table class="admin-table"><thead><tr><th>Capítulo</th><th>Promedio</th><th>Mínimo</th><th>Máximo</th><th>Total partidas</th></tr></thead><tbody>';
+              data.forEach(row => {
+                const avg = row.promedio !== null ? row.promedio.toFixed(2) : '-';
+                const min = row.min !== null ? row.min.toFixed(2) : '-';
+                const max = row.max !== null ? row.max.toFixed(2) : '-';
+                html += `<tr><td>${row.capitulo}</td><td>${avg}</td><td>${min}</td><td>${max}</td><td>${row.count}</td></tr>`;
+              });
+              html += '</tbody></table></div>';
+              statsContainer.innerHTML = html;
+            }
+          } else {
+            statsContainer.innerHTML = '<div class="no-data">Error: ' + (result.error || 'desconocido') + '</div>';
+          }
+        })
+        .catch(err => {
+          console.error('Stats fetch error:', err);
+          statsContainer.innerHTML = '<div class="no-data">Error al cargar datos. Abre la consola para más detalles.</div>';
+        });
+    });
+  }
+})();
+</script>
+
+{% endblock %}

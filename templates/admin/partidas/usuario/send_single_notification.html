@@ -1,0 +1,24 @@
+{% extends 'admin/base_site.html' %}
+{% load i18n %}
+
+{% block content %}
+  <h1>Enviar notificación a {{ usuario.username }}</h1>
+  <p>Enviarás un correo a: <strong>{{ usuario.email }}</strong></p>
+  <form method="post">
+    {% csrf_token %}
+    <div class="module aligned">
+      <div class="form-row">
+        <label for="id_subject">Asunto:</label>
+        <input type="text" name="subject" id="id_subject" style="width:60%;" required />
+      </div>
+      <div class="form-row" style="margin-top:1em;">
+        <label for="id_message">Mensaje (puedes usar {username}):</label><br />
+        <textarea name="message" id="id_message" rows="8" style="width:80%;" required></textarea>
+      </div>
+    </div>
+    <div class="buttons">
+      <input type="submit" value="Enviar" class="default" />
+      <a href="{{ request.META.HTTP_REFERER|default:'..' }}">Cancelar</a>
+    </div>
+  </form>
+{% endblock %}

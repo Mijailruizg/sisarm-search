@@ -1,60 +1,40 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    {% load static %}
-    <meta charset="UTF-8">
-    <title>Importar Excel - SISARM</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body {
-            min-height: 100vh;
-            margin: 0;
-            padding-top: 2rem;
-            background: url('https://sisarm.com/wp-content/uploads/2021/11/19-191450_import-and-export-1024x576.jpeg') no-repeat center top;
-            background-size: cover;
-        }
-        .fondo-blanco-transparente {
-            background: rgba(255,255,255,0.92);
-            border-radius: 10px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-            padding: 2rem;
-        }
-        code {
-            background-color: #f8f9fa;
-            padding: 0.1rem 0.4rem;
-            border-radius: 5px;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="fondo-blanco-transparente mx-auto mb-4 text-center" style="max-width: 600px;">
-            <h2 class="mb-3">Carga Masiva de Partidas Arancelarias</h2>
-            <p class="lead">
-                Aquí puedes subir un archivo <strong>.xlsx</strong> o <strong>.csv</strong> con la estructura adecuada.
-            </p>
+{% extends "partidas/base.html" %}
+{% load static %}
 
-        </div>
+{% block extra_styles %}
+<style>
+  body.detalle-bg { background-image: url('{% static "img/fondo.jpg.png" %}'); background-size: cover; background-repeat: no-repeat; background-attachment: fixed; background-position: center; }
+  .fondo-blanco-transparente { background: rgba(255,255,255,0.92); border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); padding: 2rem; }
+</style>
+{% endblock %}
 
-        {% if mensaje %}
-            <div class="alert alert-info text-center">{{ mensaje }}</div>
-        {% endif %}
+{% block body_class %}detalle-bg{% endblock %}
 
-        <div class="card shadow-sm mx-auto" style="max-width: 600px;">
-            <div class="card-body">
-                <form method="post" enctype="multipart/form-data">
-                    {% csrf_token %}
-                    <div class="mb-3">
-                        <label for="archivo" class="form-label">Selecciona el archivo:</label>
-                        <input type="file" class="form-control" id="archivo" name="archivo" accept=".csv, .xlsx" required>
-                    </div>
-                    <div class="d-flex justify-content-between">
-                        <button type="submit" class="btn btn-success">Subir archivo</button>
-                        <a href="{% url 'inicio' %}" class="btn btn-secondary">Volver al inicio</a>
-                    </div>
-                </form>
-            </div>
+{% block content %}
+<div class="container">
+    <div class="fondo-blanco-transparente mx-auto mb-4 text-center" style="max-width: 600px;">
+        <h2 class="mb-3">Carga Masiva de Partidas Arancelarias</h2>
+        <p class="lead">Aquí puedes subir un archivo <strong>.xlsx</strong> o <strong>.csv</strong> con la estructura adecuada.</p>
+    </div>
+
+    {% if mensaje %}
+        <div class="alert alert-info text-center">{{ mensaje }}</div>
+    {% endif %}
+
+    <div class="card shadow-sm mx-auto" style="max-width: 600px;">
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label for="archivo" class="form-label">Selecciona el archivo:</label>
+                    <input type="file" class="form-control" id="archivo" name="archivo" accept=".csv, .xlsx" required>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <button type="submit" class="btn btn-success">Subir archivo</button>
+                    <a href="{% url 'inicio' %}" class="btn btn-secondary">Volver al inicio</a>
+                </div>
+            </form>
         </div>
     </div>
-</body>
-</html>
+</div>
+{% endblock %}

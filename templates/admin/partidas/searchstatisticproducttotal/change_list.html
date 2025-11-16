@@ -1,0 +1,55 @@
+{% extends "admin/change_list.html" %}
+
+{% block content %}
+<style>
+.table-ranking {
+  width: 100%;
+  border-collapse: collapse;
+  color: #fff;
+  background: #0f1720;
+}
+.table-ranking th, .table-ranking td {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  text-align: left;
+}
+.table-ranking th {
+  color: #bbb;
+  font-weight: 600;
+}
+.rank-number {
+  width: 40px;
+  text-align: center;
+  color: #fff;
+}
+.total-cell {
+  text-align: right;
+  color: #fff;
+}
+</style>
+
+<h1 style="color:#fff;">{{ title }}</h1>
+<table class="table-ranking">
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Producto (Código)</th>
+      <th>Capítulo</th>
+      <th style="text-align:right;">Veces Buscado</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for p in top_products %}
+    <tr>
+      <td class="rank-number">{{ p.rank }}</td>
+      <td>{{ p.descripcion }} <small style="color:#999;">({{ p.codigo }})</small></td>
+      <td>{{ p.capitulo }}</td>
+      <td class="total-cell">{{ p.total }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="4" style="color:#ddd;">No hay datos.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% endblock %}
