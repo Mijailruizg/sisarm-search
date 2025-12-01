@@ -22,8 +22,25 @@
     /* Mantener clases para accesibilidad si se necesitan */
     .button-grid a.secondary, .button-grid a.important { background-color: #cce5ff; color: #003366; }
     /* Texto de licencia/herramienta */
-    .texto-licencia { margin: 1rem auto 0; max-width: 980px; text-align: center; color: #003366; font-weight: 600; background: transparent; padding: 0.45rem 0.8rem; border-radius: 8px; box-shadow: none; }
-    .marca-agua { position: fixed; bottom: 16px; right: 20px; opacity: 0.4; font-size: 0.85rem; color: #ffffff; pointer-events: none; z-index: 1000; }
+    .texto-licencia { margin: 1rem auto 1.2rem; max-width: 980px; text-align: center; color: #003366; font-weight: 600; background: transparent; padding: 0.45rem 0.8rem; border-radius: 8px; box-shadow: none; }
+    /* Estilos de texto para indicador de licencia sin fondo (solo cambia el color de la letra) */
+    .licencia-text { font-weight: 700; font-size: 1.05rem; margin-top: 0.8rem; }
+    .licencia-normal { color: #eeeeee; } /* color oscuro por defecto para >5 días */
+    .licencia-yellow { color: #d39e00; }
+    .licencia-red { color: #c82333; }
+    /* Marca de agua ahora centrada bajo el bloque de contenido y más legible */
+    .marca-agua {
+        display: block;
+        position: static;
+        margin: 0.6rem auto 0;
+        opacity: 0.92;
+        font-size: 1.05rem;
+        color: #2f3b46; /* tono oscuro para mejorar legibilidad sobre fondo claro */
+        pointer-events: none;
+        font-weight: 600;
+        text-align: center;
+        letter-spacing: 0.2px;
+    }
 
     /* Responsive: en pantallas pequeñas, 1 o 2 columnas */
     @media (max-width: 820px) {
@@ -88,45 +105,33 @@
 </div>
 
 
-{% if dias_licencia is not None %}
-<div class="texto-licencia" aria-live="polite">
-    Licencia expira en ...
-</div>
+{% comment %}
+    Mostrar indicador de licencia aquí, usando las mismas variables del context processor
+    para evitar discrepancias entre el navbar y el texto en la página.
+{% endcomment %}
+{% comment %}
+    Mostrar únicamente el texto de estado de la licencia con color según umbrales:
+    - >5 días: fondo claro (blanco / natural)
+    - 2..5 días: amarillo
+    - 1 día (menos de 2): rojo
+    Si la licencia está expirada (<= 0) mostrar mensaje de expirado con días absolutos.
+{% endcomment %}
+{% if licencia_dias_restantes is not None %}
+    <div class="texto-licencia" aria-live="polite">
+        {% if licencia_dias_restantes > 0 %}
+            {# Mostrar conteo de días (sin fecha); el color solo cambia la letra (sin fondo) #}
+            {% if licencia_dias_restantes > 5 %}
+                <p class="licencia-text licencia-normal">Tu licencia expira en {{ licencia_dias_restantes }}d</p>
+            {% elif licencia_dias_restantes <= 5 and licencia_dias_restantes >= 3 %}
+                <p class="licencia-text licencia-yellow">Tu licencia expira en {{ licencia_dias_restantes }}d</p>
+            {% else %}
+                <p class="licencia-text licencia-red">Tu licencia expira en {{ licencia_dias_restantes }}d</p>
+            {% endif %}
+        {% else %}
+            <p class="licencia-text licencia-red">Licencia expirada hace {{ licencia_dias_abs }} día{% if licencia_dias_abs != 1 %}s{% endif %}</p>
+        {% endif %}
+    </div>
 {% endif %}
-<script>
-    (function(){
-        // fechaFin llega desde el servidor como ISO (YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS)
-        // Calculamos días de forma neutral a zona horaria y en modo "inclusivo"
-        const fechaFin = '{{ fecha_fin_iso|default:"" }}';
-        if(!fechaFin) return;
-        const licenciaDiv = document.querySelector('.texto-licencia');
-        const MS_PER_DAY = 1000 * 60 * 60 * 24;
-        function actualizar(){
-            const ahora = new Date();
-            const fin = new Date(fechaFin);
-            // Normalizar ambos a la medianoche local para evitar desfases por zona horaria
-            ahora.setHours(0,0,0,0);
-            fin.setHours(0,0,0,0);
-            const diff = fin - ahora;
-            if(diff < 0){
-                licenciaDiv.textContent = 'Licencia expirada';
-                return;
-            }
-            // raw_days equivalente a (fecha_fin - hoy).days en servidor
-            const raw_days = Math.floor(diff / MS_PER_DAY);
-            // en el backend mostramos raw_days + 1 (conteo inclusivo)
-            const dias_inclusivos = raw_days + 1;
-            if(dias_inclusivos > 0){
-                licenciaDiv.textContent = `Licencia expira en ${dias_inclusivos}d`;
-            } else {
-                licenciaDiv.textContent = 'Licencia expira hoy';
-            }
-        }
-        actualizar();
-        // actualizar cada minuto es suficiente
-        setInterval(actualizar, 60000);
-    })();
-</script>
 <div class="marca-agua">
     ©2025 SIS Code Creator – Para SISARM Bolivia
 </div>

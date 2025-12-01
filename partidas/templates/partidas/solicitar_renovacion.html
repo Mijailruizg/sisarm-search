@@ -1,0 +1,100 @@
+{% extends 'partidas/base.html' %}
+{% load static %}
+
+{% block extra_styles %}
+<style>
+  body.solicitar-renovacion-bg { 
+    background-image: url('{% static "img/fondo.jpg.png" %}');
+    background-size: cover; 
+    background-repeat: no-repeat; 
+    background-attachment: fixed; 
+    background-position: center; 
+  }
+  /* fondo ligeramente oscuro para legibilidad */
+  .solicitar-card { background: rgba(255,255,255,0.92); padding: 24px; border-radius: 8px; }
+</style>
+{% endblock %}
+
+{% block body_class %}solicitar-renovacion-bg{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="row justify-content-center">
+    <div class="col-md-8 solicitar-card">
+      <h2>Solicitar renovación / Contactar soporte</h2>
+      <p>Completa el formulario para que el equipo procese tu solicitud de renovación.</p>
+
+      <form method="post" action="{% url 'solicitar_renovacion' %}">
+        {% csrf_token %}
+        <div class="mb-3">
+          <label for="nombre" class="form-label">Nombre (opcional)</label>
+          <input type="text" class="form-control" id="nombre" name="nombre" value="{{ initial_name }}" placeholder="Tu nombre (para que el soporte sepa quién envía)">
+        </div>
+        <div class="mb-3">
+          <label for="email" class="form-label">Correo de contacto</label>
+          <input type="email" class="form-control" id="email" name="email" value="{{ initial_email }}" required>
+        </div>
+        <div class="mb-3">
+          <label for="subject" class="form-label">Asunto</label>
+          <select id="subject" name="subject" class="form-control">
+            <option value="Solicitud de renovación de licencia">Solicitud de renovación de licencia</option>
+            <option value="Consulta general">Consulta general</option>
+            <option value="Reportar un problema / error">Reportar un problema / error</option>
+            <option value="Cambio de datos de cuenta">Cambio de datos de cuenta</option>
+            <option value="Problema con búsqueda">Problema con búsqueda</option>
+            <option value="Solicitud de capacitación">Solicitud de capacitación</option>
+            <option value="Factura / Pago">Factura / Pago</option>
+            <option value="Consulta técnica avanzada">Consulta técnica avanzada</option>
+            <option value="Otra">Otra (especificar abajo)</option>
+          </select>
+        </div>
+
+        <div id="custom-subject-container" class="mb-3" style="display:none;">
+          <label for="custom_subject" class="form-label">Asunto (especificar)</label>
+          <input id="custom_subject" name="custom_subject" type="text" class="form-control" placeholder="Escribe aquí el asunto si elegiste 'Otra'">
+        </div>
+
+        <div class="mb-3">
+          <label for="message" class="form-label">Mensaje</label>
+          <textarea class="form-control" id="message" name="message" rows="5" placeholder="Describe brevemente la situación y tus datos de contacto."></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Enviar solicitud</button>
+        <a href="{% url 'licencia_expirada' %}" class="btn btn-link">Volver</a>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Mostrar/ocultar campo personalizado de asunto
+  const subjectSelect = document.getElementById('subject');
+  const customSubjectContainer = document.getElementById('custom-subject-container');
+  const customSubjectInput = document.getElementById('custom_subject');
+
+  subjectSelect.addEventListener('change', function() {
+    if (this.value === 'Otra') {
+      customSubjectContainer.style.display = 'block';
+      customSubjectInput.focus();
+    } else {
+      customSubjectContainer.style.display = 'none';
+      customSubjectInput.value = '';
+    }
+  });
+
+  // Validar que se escriba algo en asunto personalizado antes de enviar
+  document.querySelector('form').addEventListener('submit', function(e) {
+    if (subjectSelect.value === 'Otra' && !customSubjectInput.value.trim()) {
+      e.preventDefault();
+      alert('Por favor escribe el asunto cuando eliges "Otra".');
+      customSubjectInput.focus();
+    } else if (subjectSelect.value === 'Otra' && customSubjectInput.value.trim()) {
+      // Crear un hidden input con subject_override para el backend
+      const hiddenInput = document.createElement('input');
+      hiddenInput.type = 'hidden';
+      hiddenInput.name = 'subject_override';
+      hiddenInput.value = customSubjectInput.value;
+      this.appendChild(hiddenInput);
+    }
+  });
+</script>
+{% endblock %}

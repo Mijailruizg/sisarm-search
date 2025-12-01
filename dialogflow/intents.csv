@@ -1,0 +1,74 @@
+intent,type,text
+Greeting,training,hola
+Greeting,training,buenas
+Greeting,training,buenas tardes
+Greeting,training,hola ¿qué tal?
+Greeting,training,buenos días
+Greeting,training,¿hay alguien?
+Greeting,response,¡Hola! Soy el Asistente de SISARM. Puedo ayudarte a Buscar partidas, Ver manuales, Consultar tu licencia o Contactar Soporte. ¿Qué quieres hacer?
+
+Help Options,training,ayuda
+Help Options,training,qué puedes hacer
+Help Options,training,opciones
+Help Options,training,me puedes ayudar
+Help Options,training,qué funciones tiene el sistema
+Help Options,response,Puedo ayudarte con: 1) Buscar Partidas; 2) Ver Manuales; 3) Mi Licencia; 4) Contactar Soporte. ¿Cuál eliges?
+
+System Function,training,cuál es la función de este sistema
+System Function,training,qué hace el sistema
+System Function,training,para qué sirve SISARM
+System Function,training,qué puede hacer este sistema
+System Function,response,SISARM ayuda a despachantes y operadores a buscar partidas arancelarias, ver requisitos y documentos, conocer gravámenes e impuestos aplicables y acceder a manuales y soporte. ¿Quieres que te muestre cómo buscar?
+
+How to Search,training,cómo busco una partida
+How to Search,training,cómo buscar por código
+How to Search,training,cómo buscar por descripción
+How to Search,training,quiero buscar la partida 010121
+How to Search,training,ejemplo 010121
+How to Search,response,Ve a "Buscar Partidas", escribe el código (ej. 010121) o una palabra clave y pulsa Buscar. Usa filtros por Capítulo, Gravamen o Entidad para acotar resultados.
+
+Buscar Partida - Code Example,training,010121
+Buscar Partida - Code Example,training,buscar 010121
+Buscar Partida - Code Example,training,partida 010121
+Buscar Partida - Code Example,response,Buscando la partida 010121... (en la UI hazlo en Buscar Partidas). ¿Quieres que lo busque por ti?
+
+Filters,training,cómo uso los filtros
+Filters,training,filtrar por capítulo
+Filters,training,filtrar por gravamen
+Filters,training,cómo aplico filtros
+Filters,response,Usa "Capítulo" para familias, "Gravamen" para impuestos y "Entidad" para la autoridad emisora. Puedes combinar varios filtros.
+
+Documents Required,training,qué documentos necesito para esta partida
+Documents Required,training,documentos requeridos partida 010121
+Documents Required,training,ver documentos de la partida
+Documents Required,response,En la ficha de detalle verás los documentos exigidos, la entidad emisora y la base legal. Busca la partida y abre su detalle.
+
+License Status,training,mi licencia
+License Status,training,cuánto dura mi licencia
+License Status,training,mi licencia vence cuándo
+License Status,training,estado de mi licencia
+License Status,response,Para ver el estado de tu licencia inicia sesión y revisa el panel de inicio. Si quieres, te explico cómo renovarla o puedo abrir el formulario de soporte.
+
+How to Renew,training,cómo renuevo mi licencia
+How to Renew,training,renovar licencia
+How to Renew,training,quiero renovar
+How to Renew,response,Para renovar contacta al soporte desde el formulario (Menú → Soporte) e indica tu usuario y datos de contacto. El equipo responde en menos de 24 horas hábiles.
+
+Contact Support,training,contacto soporte
+Contact Support,training,cómo contacto soporte
+Contact Support,training,soporte
+Contact Support,training,necesito ayuda humana
+Contact Support,response,Abre el formulario en "Soporte" y adjunta capturas o detalles. Nuestro equipo revisa y responde por correo.
+
+Manuals,training,dónde están los manuales
+Manuals,training,manual buscador
+Manuals,training,guías de usuario
+Manuals,training,ver manuales
+Manuals,response,Los manuales están en la sección "Manuales" del menú; revisa la "Guía del Buscador" para ejemplos de búsquedas y filtros.
+
+Export Data,training,cómo exporto a excel
+Export Data,training,exportar resultados
+Export Data,training,generar excel
+Export Data,response,Los administradores pueden exportar resultados a Excel desde el panel de búsqueda. Indica los filtros que deseas aplicar.
+
+Fallback Improved,response,Lo siento, no entendí exactamente tu consulta. ¿Quieres: 1) Buscar una partida, 2) Ver manuales, 3) Consultar tu licencia, 4) Contactar soporte? Responde con la opción o escribe tu pregunta.

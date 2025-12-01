@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guía: Crear Intents en Dialogflow</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        header h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        header p {
+            color: #666;
+            margin-bottom: 15px;
+        }
+        .steps {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .step {
+            background: #f0f0f0;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .step.active {
+            background: #667eea;
+            color: white;
+        }
+        .intent-card {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border-left: 5px solid #667eea;
+        }
+        .intent-number {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 35px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        .intent-title {
+            font-size: 22px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        .section {
+            margin-bottom: 20px;
+        }
+        .section-title {
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 14px;
+            text-transform: uppercase;
+        }
+        .phrases {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+        .phrase {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+            font-size: 14px;
+        }
+        .phrase:last-child {
+            border-bottom: none;
+        }
+        .phrase-text {
+            background: #fff;
+            padding: 8px 12px;
+            border-radius: 4px;
+            display: inline-block;
+            margin: 5px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+        .response {
+            background: #e8f5e9;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #4caf50;
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+        }
+        .copy-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-right: 10px;
+        }
+        .copy-btn:hover {
+            background: #5568d3;
+        }
+        .instructions {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid #ffc107;
+        }
+        .instructions h3 {
+            color: #856404;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        .instructions ol {
+            margin-left: 20px;
+            color: #856404;
+            font-size: 13px;
+        }
+        .instructions li {
+            margin-bottom: 8px;
+        }
+        .code {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 13px;
+            margin: 5px 0;
+            border-left: 3px solid #667eea;
+        }
+        footer {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            margin-top: 30px;
+            color: #666;
+            font-size: 13px;
+        }
+        .progress {
+            display: flex;
+            gap: 5px;
+            margin-top: 20px;
+        }
+        .progress-item {
+            height: 4px;
+            flex: 1;
+            background: #e0e0e0;
+            border-radius: 2px;
+        }
+        .progress-item.done {
+            background: #4caf50;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🤖 Crear Intents en Dialogflow ES</h1>
+            <p>Guía paso a paso para crear 14 intents en tu agente SISARM</p>
+            <div class="instructions">
+                <h3>📍 Antes de comenzar:</h3>
+                <ol>
+                    <li>Abre Dialogflow: <strong><a href="https://dialogflow.cloud.google.com" target="_blank">https://dialogflow.cloud.google.com</a></strong></li>
+                    <li>Selecciona tu proyecto: <strong>SISARM Assistant</strong></li>
+                    <li>En el panel izquierdo, haz clic en <strong>Intents</strong></li>
+                    <li>Haz clic en <strong>Create Intent</strong> para cada uno que se muestra abajo</li>
+                </ol>
+            </div>
+            <div class="progress">
+                <div class="progress-item"></div><div class="progress-item"></div><div class="progress-item"></div><div class="progress-item"></div><div class="progress-item"></div><div class="progress-item"></div><div class="progress-item"></div><div class="progress-item"></div><div class="progress-item"></div><div class="progress-item"></div><div class="progress-item"></div><div class="progress-item"></div><div class="progress-item"></div><div class="progress-item"></div>
+            </div>
+        </header>
+
+        <div class="intents-container">
+
+        <div class="intent-card">
+            <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                <div class="intent-number">1</div>
+                <div class="intent-title">Greeting</div>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">📝 Display Name</div>
+                <div class="code">Greeting</div>
+                <button class="copy-btn" onclick="copyToClipboard(this)">Copiar</button>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">🎯 Training Phrases (9 frases)</div>
+                <div class="phrases">
+                    <div class="phrase"><div class="phrase-text">hola</div></div><div class="phrase"><div class="phrase-text">buenas</div></div><div class="phrase"><div class="phrase-text">buenas tardes</div></div><div class="phrase"><div class="phrase-text">hola ¿qué tal?</div></div><div class="phrase"><div class="phrase-text">buenos días</div></div><div class="phrase"><div class="phrase-text">¿hay alguien?</div></div><div class="phrase"><div class="phrase-text">buenos</div></div><div class="phrase"><div class="phrase-text">saludos</div></div><div class="phrase"><div class="phrase-text">¿me ayudas?</div></div>
+                </div>
+                <button class="copy-btn" onclick="copyPhrasesToClipboard(this)">Copiar todas las frases</button>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">💬 Response (Text Response)</div>
+                <div class="response">¡Hola! Soy el Asistente de SISARM. Soy tu ayudante para buscar partidas arancelarias, entender cómo funciona el sistema y resolver tus dudas. ¿En qué puedo ayudarte hoy?</div>
+                <button class="copy-btn" onclick="copyToClipboard(this)">Copiar respuesta</button>
+            </div>
+        </div>
+
+        <div class="intent-card">
+            <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                <div class="intent-number">2</div>
+                <div class="intent-title">System Function</div>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">📝 Display Name</div>
+                <div class="code">System Function</div>
+                <button class="copy-btn" onclick="copyToClipboard(this)">Copiar</button>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">🎯 Training Phrases (7 frases)</div>
+                <div class="phrases">
+                    <div class="phrase"><div class="phrase-text">cuál es la función de este sistema</div></div><div class="phrase"><div class="phrase-text">qué hace el sistema</div></div><div class="phrase"><div class="phrase-text">para qué sirve SISARM</div></div><div class="phrase"><div class="phrase-text">qué puede hacer este sistema</div></div><div class="phrase"><div class="phrase-text">para qué es este programa</div></div><div class="phrase"><div class="phrase-text">cuál es el propósito de SISARM</div></div><div class="phrase"><div class="phrase-text">qué hace SISARM</div></div>
+                </div>
+                <button class="copy-btn" onclick="copyPhrasesToClipboard(this)">Copiar todas las frases</button>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">💬 Response (Text Response)</div>
+                <div class="response">SISARM es un buscador inteligente de partidas arancelarias. Te ayuda a:
+- Buscar códigos de partidas arancelarias por descripción o código
+- Filtrar por capítulo, sección o requisitos aduanales
+- Ver documentos requeridos para cada partida
+- Gestionar tu licencia de usuario
+
+Es una herramienta esencial para despachantes aduanales, operadores de comercio exterior y profesionales del sector logístico.</div>
+                <button class="copy-btn" onclick="copyToClipboard(this)">Copiar respuesta</button>
+            </div>
+        </div>
+
+        <div class="intent-card">
+            <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                <div class="intent-number">3</div>
+                <div class="intent-title">Help Options</div>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">📝 Display Name</div>
+                <div class="code">Help Options</div>
+                <button class="copy-btn" onclick="copyToClipboard(this)">Copiar</button>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">🎯 Training Phrases (7 frases)</div>
+                <div class="phrases">
+                    <div class="phrase"><div class="phrase-text">ayuda</div></div><div class="phrase"><div class="phrase-text">qué puedes hacer</div></div><div class="phrase"><div class="phrase-text">opciones</div></div><div class="phrase"><div class="phrase-text">me puedes ayudar</div></div><div class="phrase"><div class="phrase-text">qué funciones tiene el sistema</div></div><div class="phrase"><div class="phrase-text">cuál es tu función</div></div><div class="phrase"><div class="phrase-text">cómo funcionas</div></div>
+                </div>
+                <button class="copy-btn" onclick="copyPhrasesToClipboard(this)">Copiar todas las frases</button>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">💬 Response (Text Response)</div>
+                <div class="response">Soy tu asistente personal. Puedo ayudarte con:
+
+1️⃣ **Buscar Partidas** - Te guío en búsquedas por código o descripción
+2️⃣ **Ver Manuales** - Acceso a guías y tutoriales del sistema
+3️⃣ **Mi Licencia** - Verificar estado y renovación
+4️⃣ **Contactar Soporte** - Conectarte con el equipo técnico
+
+¿Cuál de estos temas te interesa?</div>
+                <button class="copy-btn" onclick="copyToClipboard(this)">Copiar respuesta</button>
+            </div>
+        </div>
+
+        <div class="intent-card">
+            <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                <div class="intent-number">4</div>
+                <div class="intent-title">How to Search</div>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">📝 Display Name</div>
+                <div class="code">How to Search</div>
+                <button class="copy-btn" onclick="copyToClipboard(this)">Copiar</button>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">🎯 Training Phrases (6 frases)</div>
+                <div class="phrases">
+                    <div class="phrase"><div class="phrase-text">cómo busco una partida</div></div><div class="phrase"><div class="phrase-text">cómo buscar por código</div></div><div class="phrase"><div class="phrase-text">cómo buscar por descripción</div></div><div class="phrase"><div class="phrase-text">quiero buscar una partida</div></div><div class="phrase"><div class="phrase-text">búsqueda de partidas</div></div><div class="phrase"><div class="phrase-text">explicame como buscar</div></div>
+                </div>
+                <button class="copy-btn" onclick="copyPhrasesToClipboard(this)">Copiar todas las frases</button>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">💬 Response (Text Response)</div>
+                <div class="response">Para buscar una partida arancelaria:
+
+1. Ve a **Buscar Partidas** en el menú principal
+2. Puedes buscar de dos formas:
+   - **Por Código**: Ingresa el código de partida (ej: 010121)
+   - **Por Descripción**: Escribe qué es (ej: 'leche en polvo', 'carne de res')
+3. Presiona Buscar o Enter
+4. Usa los filtros a la izquierda para refinar resultados
+
+¿Quieres un ejemplo específico?</div>
+                <button class="copy-btn" onclick="copyToClipboard(this)">Copiar respuesta</button>
+            </div>
+        </div>
+
+        <div class="intent-card">
+            <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                <div class="intent-number">5</div>
+                <div class="intent-title">Code Search Example</div>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">📝 Display Name</div>
+                <div class="code">Code Search Example</div>
+                <button class="copy-btn" onclick="copyToClipboard(this)">Copiar</button>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">🎯 Training Phrases (6 frases)</div>
+                <div class="phrases">
+                    <div class="phrase"><div class="phrase-text">010121</div></div><div class="phrase"><div class="phrase-text">buscar 010121</div></div><div class="phrase"><div class="phrase-text">partida 010121</div></div><div class="phrase"><div class="phrase-text">buscar carne</div></div><div class="phrase"><div class="phrase-text">buscar lácteos</div></div><div class="phrase"><div class="phrase-text">búsqueda de productos</div></div>
+                </div>
+                <button class="copy-btn" onclick="copyPhrasesToClipboard(this)">Copiar todas las frases</button>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">💬 Response (Text Response)</div>
+                <div class="response">Ejemplo de búsqueda:
+
+**Para la partida 010121** (Carne de animales de la especie bovina):
+1. Abre Buscar Partidas
+2. En la barra de búsqueda escribe: 010121
+3. Verás el resultado con descripción completa
+4. Haz clic para ver documentos requeridos y más detalles
+
+También puedes escribir 'carne de res' o 'bovino' y el sistema te mostrará opciones relacionadas.</div>
+                <button class="copy-btn" onclick="copyToClipboard(this)">Copiar respuesta</button>
+            </div>
+        </div>
+
+        <div class="intent-card">
+            <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                <div class="intent-number">6</div>
+                <div class="intent-title">Filters Explanation</div>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">📝 Display Name</div>
+                <div class="code">Filters Explanation</div>
+                <button class="copy-btn" onclick="copyToClipboard(this)">Copiar</button>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">🎯 Training Phrases (6 frases)</div>
+                <div class="phrases">
+                    <div class="phrase"><div class="phrase-text">cómo uso los filtros</div></div><div class="phrase"><div class="phrase-text">filtrar por capítulo</div></div><div class="phrase"><div class="phrase-text">filtrar por gravamen</div></div><div class="phrase"><div class="phrase-text">cómo aplico filtros</div></div><div class="phrase"><div class="phrase-text">para qué sirven los filtros</div></div><div class="phrase"><div class="phrase-text">qué son los filtros</div></div>
+                </div>
+                <button class="copy-btn" onclick="copyPhrasesToClipboard(this)">Copiar todas las frases</button>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">💬 Response (Text Response)</div>
+                <div class="response">Los **filtros** te permiten refinar búsquedas:
+
+- **Capítulo**: Agrupa partidas por categoría (ej: Animales vivos, Productos lácteos)
+- **Gravamen**: Filtra por aranceles aduanales
+- **Requisitos**: Muestra documentación requerida
+
+Cómo usar:
+1. Realiza una búsqueda inicial
+2. A la izquierda verás los filtros disponibles
+3. Haz clic en lo que te interese
+4. Los resultados se actualizan automáticamente
+
+¿Necesitas filtrar algo específico?</div>
+                <button class="copy-btn" onclick="copyToClipboard(this)">Copiar respuesta</button>
+            </div>
+        </div>
+
+        <div class="intent-card">
+            <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                <div class="intent-number">7</div>
+                <div class="intent-title">Documents Required</div>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">📝 Display Name</div>
+                <div class="code">Documents Required</div>
+                <button class="copy-btn" onclick="copyToClipboard(this)">Copiar</button>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">🎯 Training Phrases (5 frases)</div>
+                <div class="phrases">
+                    <div class="phrase"><div class="phrase-text">qué documentos necesito para esta partida</div></div><div class="phrase"><div class="phrase-text">documentos requeridos</div></div><div class="phrase"><div class="phrase-text">ver documentos</div></div><div class="phrase"><div class="phrase-text">qué documentación se necesita</div></div><div class="phrase"><div class="phrase-text">documentos de partida</div></div>
+                </div>
+                <button class="copy-btn" onclick="copyPhrasesToClipboard(this)">Copiar todas las frases</button>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">💬 Response (Text Response)</div>
+                <div class="response">Para ver los **documentos requeridos** de una partida:
+
+1. Busca la partida que te interesa
+2. Haz clic en el resultado para abrir detalles
+3. En la sección **Documentación Requerida** verás:
+   - Certificados sanitarios
+   - Permisos especiales
+   - Documentos aduanales
+   - Certificaciones de origen
+
+Si necesitas claridad sobre un documento específico, puedes contactar al soporte.</div>
+                <button class="copy-btn" onclick="copyToClipboard(this)">Copiar respuesta</button>
+            </div>
+        </div>
+
+        <div class="intent-card">
+            <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                <div class="intent-number">8</div>
+                <div class="intent-title">License Status</div>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">📝 Display Name</div>
+                <div class="code">License Status</div>
+                <button class="copy-btn" onclick="copyToClipboard(this)">Copiar</button>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">🎯 Training Phrases (8 frases)</div>
+                <div class="phrases">
+                    <div class="phrase"><div class="phrase-text">mi licencia</div></div><div class="phrase"><div class="phrase-text">cuánto dura mi licencia</div></div><div class="phrase"><div class="phrase-text">mi licencia vence cuándo</div></div><div class="phrase"><div class="phrase-text">estado de mi licencia</div></div><div class="phrase"><div class="phrase-text">ver licencia</div></div><div class="phrase"><div class="phrase-text">información de licencia</div></div><div class="phrase"><div class="phrase-text">cuenta premium</div></div><div class="phrase"><div class="phrase-text">verificar licencia</div></div>
+                </div>
+                <button class="copy-btn" onclick="copyPhrasesToClipboard(this)">Copiar todas las frases</button>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">💬 Response (Text Response)</div>
+                <div class="response">Para verificar tu **estado de licencia**:
+
+1. Inicia sesión en tu cuenta
+2. En el Panel de Inicio verás:
+   - Estado actual (Activa/Vencida)
+   - Fecha de vencimiento
+   - Búsquedas restantes (si aplica)
+
+Si tu licencia está próxima a vencer, recibirás notificaciones. ¿Necesitas renovarla?</div>
+                <button class="copy-btn" onclick="copyToClipboard(this)">Copiar respuesta</button>
+            </div>
+        </div>
+
+        <div class="intent-card">
+            <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                <div class="intent-number">9</div>
+                <div class="intent-title">How to Renew</div>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">📝 Display Name</div>
+                <div class="code">How to Renew</div>
+                <button class="copy-btn" onclick="copyToClipboard(this)">Copiar</button>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">🎯 Training Phrases (6 frases)</div>
+                <div class="phrases">
+                    <div class="phrase"><div class="phrase-text">cómo renuevo mi licencia</div></div><div class="phrase"><div class="phrase-text">renovar licencia</div></div><div class="phrase"><div class="phrase-text">quiero renovar</div></div><div class="phrase"><div class="phrase-text">extender licencia</div></div><div class="phrase"><div class="phrase-text">reactivar licencia</div></div><div class="phrase"><div class="phrase-text">licencia vencida</div></div>
+                </div>
+                <button class="copy-btn" onclick="copyPhrasesToClipboard(this)">Copiar todas las frases</button>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">💬 Response (Text Response)</div>
+                <div class="response">Para **renovar tu licencia**:
+
+1. Ve a **Soporte** en el menú
+2. Abre el formulario de contacto
+3. Indica que deseas renovar y proporciona:
+   - Tu usuario
+   - Correo de contacto
+   - Teléfono (opcional)
+4. Adjunta capturas si es necesario
+5. El equipo responde en menos de 24 horas hábiles
+
+¿Quiero abrir el formulario de Soporte ahora?</div>
+                <button class="copy-btn" onclick="copyToClipboard(this)">Copiar respuesta</button>
+            </div>
+        </div>
+
+        <div class="intent-card">
+            <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                <div class="intent-number">10</div>
+                <div class="intent-title">Contact Support</div>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">📝 Display Name</div>
+                <div class="code">Contact Support</div>
+                <button class="copy-btn" onclick="copyToClipboard(this)">Copiar</button>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">🎯 Training Phrases (7 frases)</div>
+                <div class="phrases">
+                    <div class="phrase"><div class="phrase-text">contacto soporte</div></div><div class="phrase"><div class="phrase-text">cómo contacto soporte</div></div><div class="phrase"><div class="phrase-text">soporte</div></div><div class="phrase"><div class="phrase-text">necesito ayuda humana</div></div><div class="phrase"><div class="phrase-text">quiero hablar con alguien</div></div><div class="phrase"><div class="phrase-text">equipo técnico</div></div><div class="phrase"><div class="phrase-text">atención al cliente</div></div>
+                </div>
+                <button class="copy-btn" onclick="copyPhrasesToClipboard(this)">Copiar todas las frases</button>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">💬 Response (Text Response)</div>
+                <div class="response">Para **contactar al equipo de soporte**:
+
+1. Haz clic en **Soporte** (menú principal)
+2. Completa el formulario con:
+   - Tu nombre
+   - Correo electrónico
+   - Tema (Búsqueda, Licencia, Técnico, Otro)
+   - Descripción detallada del problema
+3. Adjunta capturas si es relevante
+
+El equipo técnico revisa todos los mensajes y responde por correo en máximo 24 horas hábiles.
+
+¿Abrimos el formulario ahora?</div>
+                <button class="copy-btn" onclick="copyToClipboard(this)">Copiar respuesta</button>
+            </div>
+        </div>
+
+        <div class="intent-card">
+            <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                <div class="intent-number">11</div>
+                <div class="intent-title">Manuals and Guides</div>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">📝 Display Name</div>
+                <div class="code">Manuals and Guides</div>
+                <button class="copy-btn" onclick="copyToClipboard(this)">Copiar</button>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">🎯 Training Phrases (7 frases)</div>
+                <div class="phrases">
+                    <div class="phrase"><div class="phrase-text">dónde están los manuales</div></div><div class="phrase"><div class="phrase-text">manual buscador</div></div><div class="phrase"><div class="phrase-text">guías de usuario</div></div><div class="phrase"><div class="phrase-text">ver manuales</div></div><div class="phrase"><div class="phrase-text">cómo usar el sistema</div></div><div class="phrase"><div class="phrase-text">tutorial</div></div><div class="phrase"><div class="phrase-text">documentación</div></div>
+                </div>
+                <button class="copy-btn" onclick="copyPhrasesToClipboard(this)">Copiar todas las frases</button>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">💬 Response (Text Response)</div>
+                <div class="response">En la sección **Manuales** del menú encontrarás:
+
+📖 **Guía del Buscador** - Ejemplos de búsquedas avanzadas
+📖 **Guía de Filtros** - Cómo usar cada filtro disponible
+📖 **FAQ** - Preguntas frecuentes resueltas
+📖 **Glosario Aduanal** - Términos técnicos explicados
+📖 **Guía de Licencias** - Cómo gestionar tu suscripción
+
+Todos los manuales tienen ejemplos prácticos. ¿Cuál te interesa?</div>
+                <button class="copy-btn" onclick="copyToClipboard(this)">Copiar respuesta</button>
+            </div>
+        </div>
+
+        <div class="intent-card">
+            <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                <div class="intent-number">12</div>
+                <div class="intent-title">Export Data</div>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">📝 Display Name</div>
+                <div class="code">Export Data</div>
+                <button class="copy-btn" onclick="copyToClipboard(this)">Copiar</button>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">🎯 Training Phrases (5 frases)</div>
+                <div class="phrases">
+                    <div class="phrase"><div class="phrase-text">cómo exporto a excel</div></div><div class="phrase"><div class="phrase-text">exportar resultados</div></div><div class="phrase"><div class="phrase-text">generar excel</div></div><div class="phrase"><div class="phrase-text">descargar resultados</div></div><div class="phrase"><div class="phrase-text">exportar búsqueda</div></div>
+                </div>
+                <button class="copy-btn" onclick="copyPhrasesToClipboard(this)">Copiar todas las frases</button>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">💬 Response (Text Response)</div>
+                <div class="response">Para **exportar a Excel**:
+
+1. Realiza una búsqueda en Buscar Partidas
+2. Haz clic en el botón **Descargar/Exportar** (generalmente en la esquina superior)
+3. Selecciona el formato: Excel, PDF o CSV
+4. Se descargará un archivo con los resultados filtrados
+
+El archivo incluye:
+- Código de partida
+- Descripción
+- Aranceles
+- Requisitos
+- Documentación necesaria
+
+¿Necesitas exportar búsquedas específicas?</div>
+                <button class="copy-btn" onclick="copyToClipboard(this)">Copiar respuesta</button>
+            </div>
+        </div>
+
+        <div class="intent-card">
+            <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                <div class="intent-number">13</div>
+                <div class="intent-title">General Question</div>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">📝 Display Name</div>
+                <div class="code">General Question</div>
+                <button class="copy-btn" onclick="copyToClipboard(this)">Copiar</button>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">🎯 Training Phrases (8 frases)</div>
+                <div class="phrases">
+                    <div class="phrase"><div class="phrase-text">qué es</div></div><div class="phrase"><div class="phrase-text">cómo funciona</div></div><div class="phrase"><div class="phrase-text">explícame</div></div><div class="phrase"><div class="phrase-text">cuéntame</div></div><div class="phrase"><div class="phrase-text">dime</div></div><div class="phrase"><div class="phrase-text">información de</div></div><div class="phrase"><div class="phrase-text">detalles de</div></div><div class="phrase"><div class="phrase-text">más sobre</div></div>
+                </div>
+                <button class="copy-btn" onclick="copyPhrasesToClipboard(this)">Copiar todas las frases</button>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">💬 Response (Text Response)</div>
+                <div class="response">Entiendo que quieres más información. Puedo ayudarte con:
+- **¿Qué es SISARM?** - Te explico el sistema
+- **¿Cómo busco?** - Guía de búsquedas
+- **¿Cómo filtro?** - Uso de filtros
+- **¿Licencia?** - Información de suscripción
+- **¿Documentos?** - Requisitos aduanales
+- **¿Soporte?** - Contactar equipo técnico
+
+¿Cuál de estos temas te interesa?</div>
+                <button class="copy-btn" onclick="copyToClipboard(this)">Copiar respuesta</button>
+            </div>
+        </div>
+
+        <div class="intent-card">
+            <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                <div class="intent-number">14</div>
+                <div class="intent-title">Fallback Improved</div>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">📝 Display Name</div>
+                <div class="code">Fallback Improved</div>
+                <button class="copy-btn" onclick="copyToClipboard(this)">Copiar</button>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">🎯 Training Phrases (0 frases)</div>
+                <div class="phrases">
+                    
+                </div>
+                <button class="copy-btn" onclick="copyPhrasesToClipboard(this)">Copiar todas las frases</button>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">💬 Response (Text Response)</div>
+                <div class="response">Disculpa</div>
+                <button class="copy-btn" onclick="copyToClipboard(this)">Copiar respuesta</button>
+            </div>
+        </div>
+
+        </div>
+
+        <footer>
+            <p>✅ Una vez que hayas creado todos los intents, prueba el chat en tu aplicación SISARM</p>
+            <p style="margin-top: 10px; font-size: 12px; color: #999;">Generated on November 28, 2025</p>
+        </footer>
+    </div>
+
+    <script>
+        function copyToClipboard(btn) {{
+            const parent = btn.parentElement;
+            const textToCopy = parent.querySelector('.code, .response')?.innerText || 
+                             parent.querySelector('.intent-title')?.innerText;
+            
+            if (textToCopy) {{
+                navigator.clipboard.writeText(textToCopy).then(() => {{
+                    const originalText = btn.innerText;
+                    btn.innerText = '✅ Copiado!';
+                    setTimeout(() => {{
+                        btn.innerText = originalText;
+                    }}, 2000);
+                }});
+            }}
+        }}
+
+        function copyPhrasesToClipboard(btn) {{
+            const parent = btn.parentElement;
+            const phrases = Array.from(parent.querySelectorAll('.phrase-text'))
+                .map(el => el.innerText)
+                .join('\n');
+            
+            if (phrases) {{
+                navigator.clipboard.writeText(phrases).then(() => {{
+                    const originalText = btn.innerText;
+                    btn.innerText = '✅ Copiado!';
+                    setTimeout(() => {{
+                        btn.innerText = originalText;
+                    }}, 2000);
+                }});
+            }}
+        }}
+
+        // Scroll to hash on load
+        window.addEventListener('load', () => {{
+            if (window.location.hash) {{
+                document.querySelector(window.location.hash)?.scrollIntoView();
+            }}
+        }});
+    </script>
+</body>
+</html>

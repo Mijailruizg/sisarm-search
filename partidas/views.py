@@ -4,6 +4,7 @@ from .forms import CargarExcelForm, PartidaForm, RegistroUsuarioForm
 from .importar_excel import importar_partidas_desde_excel
 from .decorators import rol_requerido
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.views import LoginView
 from django.contrib import messages
 from django.utils.timezone import now
 from django.contrib.auth import login
@@ -14,6 +15,7 @@ import re
 from django.http import HttpResponse, JsonResponse, StreamingHttpResponse
 from django.core.mail import send_mail
 from django.conf import settings
+from django.views.decorators.csrf import csrf_exempt
 import csv
 from .decorators import rol_requerido
 from .models import ExportLog
@@ -24,13 +26,19 @@ from openpyxl import Workbook
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import Alignment, Font, Border, Side
 
-# Cliente de chat: usar Dialogflow si está disponible. Si no, dejar en None para
-# que el fallback local (_generate_local_reply) maneje la respuesta.
+# Cliente de chat: preferir el fallback mejorado. Si no está, intentar otros.
 try:
-    from .dialogflow_client import get_chat_response, stream_chat_response
+    from .dialogflow_improved import get_chat_response, stream_chat_response, DEFAULT_RESPONSE
 except Exception:
-    get_chat_response = None
-    stream_chat_response = None
+    try:
+        from .dialogflow_local import get_chat_response, stream_chat_response, DEFAULT_RESPONSE
+    except Exception:
+        try:
+            from .dialogflow_client import get_chat_response, stream_chat_response, DEFAULT_RESPONSE
+        except Exception:
+            get_chat_response = None
+            stream_chat_response = None
+            DEFAULT_RESPONSE = 'Lo siento, el asistente no está disponible en este momento.'
 
 
 def _split_normalize_ace22(full_ace22: str):
@@ -413,6 +421,70 @@ def api_autocomplete(request):
             pass
 
     return JsonResponse({'results': results})
+
+
+# Webhook endpoint para Dialogflow fulfillment (recibe requests desde Dialogflow)
+@csrf_exempt
+def dialogflow_webhook(request):
+    try:
+        import json
+        req = json.loads(request.body.decode('utf-8') or '{}')
+    except Exception:
+        return JsonResponse({'fulfillmentText': 'Error parsing request'}, status=400)
+
+    # Extraer intent name
+    intent = req.get('queryResult', {}).get('intent', {}).get('displayName', '')
+    session = req.get('session', '')  # formato: projects/.../agent/sessions/<sessionId>
+
+    # Intent específico: estado de licencia
+    try:
+        if 'license' in intent.lower() or 'licencia' in intent.lower():
+            # intentar extraer user id desde session si usamos formato 'user-<id>' en el session_id
+            session_id = session.split('/')[-1] if session else ''
+            user_id = None
+            if session_id.startswith('user-'):
+                try:
+                    user_id = int(session_id.split('user-')[-1])
+                except Exception:
+                    user_id = None
+            # intentar buscar licencia en DB si user_id disponible
+            if user_id:
+                try:
+                    licencia = LicenciaTemporal.objects.filter(usuario__id=user_id, estado=True).order_by('-fecha_fin').first()
+                    if licencia:
+                        from datetime import date
+                        hoy = date.today()
+                        dias = max(0, (licencia.fecha_fin - hoy).days + 1)
+                        text = f'Tu licencia vence el {licencia.fecha_fin}. Quedan {dias} día{"s" if dias!=1 else ""}.'
+                        return JsonResponse({'fulfillmentText': text})
+                except Exception:
+                    pass
+            # si no hay user o licencia, devolver instrucción genérica
+            return JsonResponse({'fulfillmentText': 'Para ver el estado de tu licencia, inicia sesión en el sistema o solicita soporte desde la sección Soporte.'})
+
+        # Intent de búsqueda de partida: si Dialogflow envía parámetro 'codigo' lo buscamos
+        if 'partida' in intent.lower() or 'buscar' in intent.lower():
+            params = req.get('queryResult', {}).get('parameters', {}) or {}
+            codigo = params.get('codigo') or params.get('number') or params.get('any')
+            if codigo:
+                try:
+                    p = PartidaArancelaria.objects.filter(codigo__icontains=str(codigo)).first()
+                    if p:
+                        text = f"Partida {p.codigo}: {p.descripcion[:300]}"
+                        return JsonResponse({'fulfillmentText': text})
+                except Exception:
+                    pass
+
+        # Fallback: delegar al generador local para respuestas contextuales
+        try:
+            query_text = req.get('queryResult', {}).get('queryText', '')
+            reply, _, _ = _generate_local_reply(query_text, request=None)
+            return JsonResponse({'fulfillmentText': reply})
+        except Exception:
+            return JsonResponse({'fulfillmentText': 'Lo siento, no pude procesar tu solicitud ahora.'})
+
+    except Exception as e:
+        return JsonResponse({'fulfillmentText': f'Error interno: {e}'}, status=500)
 
 @login_required
 def detalle_partida(request, partida_id):
@@ -850,6 +922,28 @@ def aranceles_por_capitulo(request, capitulo):
     qs = PartidaArancelaria.objects.filter(capitulo=capitulo).order_by('codigo')
     return render(request, 'partidas/aranceles_por_capitulo.html', {'capitulo': capitulo, 'aranceles': qs})
 
+
+# Custom LoginView: after a successful login, redirect to licencia_expirada
+# when the user's latest license is missing, expired or inactive.
+class CustomLoginView(LoginView):
+    def form_valid(self, form):
+        # login the user first
+        response = super().form_valid(form)
+        try:
+            user = self.request.user
+            from datetime import date
+            licencia = None
+            try:
+                licencia = user.licenciatemporal_set.order_by('-fecha_fin').first()
+            except Exception:
+                licencia = None
+            if (not licencia) or (licencia and licencia.fecha_fin < date.today()) or (licencia and not getattr(licencia, 'estado', True)):
+                return redirect('licencia_expirada')
+        except Exception:
+            # on any unexpected error, fall back to default behaviour
+            return response
+        return response
+
 def chat_asistente(request):
     # conservar el texto original para mostrarlo en la plantilla
     original_mensaje = request.GET.get('mensaje', '').strip()
@@ -907,11 +1001,80 @@ def chat_asistente(request):
 def licencia_expirada(request):
     return render(request, 'partidas/licencia_expirada.html')
 
+
+def solicitar_renovacion(request):
+    """Vista pública para solicitar renovación o contactar soporte desde la página de licencia expirada.
+    GET: muestra un formulario para indicar correo y mensaje.
+    POST: crea `SolicitudSoporte`, intenta enviar el correo y redirige a `licencia_expirada` con mensaje.
+    """
+    from .models import SolicitudSoporte
+
+    if request.method == 'POST':
+        email = request.POST.get('email', '').strip()
+        # Priorizar subject_override si el JS creó ese campo para asunto personalizado
+        subject = (request.POST.get('subject_override') or request.POST.get('subject') or '').strip() or f"Solicitud de renovación de licencia"
+        message = request.POST.get('message', '').strip()
+
+        # si el usuario está autenticado y no proporcionó email, usar el email del usuario
+        if not email and request.user.is_authenticated:
+            email = getattr(request.user, 'email', '') or ''
+
+        if not email:
+            messages.error(request, 'Debes indicar un correo de contacto para que podamos responderte.')
+            return redirect('solicitar_renovacion')
+
+        if not message:
+            # mensaje por defecto si no se proporciona
+            message = f"Solicitud de renovación iniciada desde la página de Licencia Expirada. Usuario: {request.user.username if request.user.is_authenticated else 'Anónimo'}"
+
+        nombre_val = request.POST.get('nombre', '').strip() if request.method == 'POST' else ''
+        if not nombre_val and request.user.is_authenticated:
+            nombre_val = getattr(request.user, 'get_full_name', lambda: '')() or getattr(request.user, 'username', '')
+
+        try:
+            solicitud = SolicitudSoporte.objects.create(
+                usuario=request.user if request.user.is_authenticated else None,
+                nombre=nombre_val or None,
+                correo=email or 'sin-correo@local',
+                asunto=subject,
+                mensaje=message,
+                estado='pending'
+            )
+        except Exception:
+            solicitud = None
+
+        # Intento de envío
+        try:
+            support_to = getattr(settings, 'SUPPORT_EMAIL', 'soporte@sisarm.com')
+            send_mail(subject, message, email or getattr(settings, 'DEFAULT_FROM_EMAIL', ''), [support_to], fail_silently=False)
+            # No marcar automáticamente como 'sent' — mantener como 'pending' para que el admin procese y confirme.
+            messages.success(request, 'Solicitud registrada. El equipo de soporte la procesará.')
+        except Exception as e:
+            # Registrar el error en el registro sin cambiar el estado (permanece 'pending')
+            if solicitud:
+                solicitud.error_message = str(e)
+                solicitud.save()
+            messages.error(request, f'No se pudo enviar la notificación por correo: {e}. Su petición fue registrada y el equipo la revisará.')
+
+        return redirect('licencia_expirada')
+
+    # GET: mostrar formulario simple para recopilar email y mensaje
+    initial_email = request.user.email if request.user.is_authenticated else ''
+    initial_name = ''
+    if request.user.is_authenticated:
+        initial_name = getattr(request.user, 'get_full_name', lambda: '')() or getattr(request.user, 'username', '')
+    return render(request, 'partidas/solicitar_renovacion.html', {'initial_email': initial_email, 'initial_name': initial_name})
+
 from django.shortcuts import render
 
 @login_required
 def soporte(request):
-    return render(request, 'partidas/soporte.html')
+    # Proveer valores iniciales para autofill en la plantilla
+    initial_email = request.user.email if request.user.is_authenticated else ''
+    initial_name = ''
+    if request.user.is_authenticated:
+        initial_name = getattr(request.user, 'get_full_name', lambda: '')() or getattr(request.user, 'username', '')
+    return render(request, 'partidas/soporte.html', {'initial_email': initial_email, 'initial_name': initial_name})
 
 
 @login_required
@@ -919,10 +1082,10 @@ def soporte_submit(request):
     """Recibe POST desde el formulario de Soporte y lo envía por email al equipo de soporte.
     Guarda también una entrada en HistoriaActividad.
     """
-    from django.core.mail import send_mail
     from django.shortcuts import redirect
     from django.contrib import messages
-    subject = request.POST.get('subject', '').strip()
+    # Priorizar subject_override para asuntos personalizados enviados desde el formulario
+    subject = (request.POST.get('subject_override') or request.POST.get('subject') or '').strip()
     message = request.POST.get('message', '').strip()
     email_from = request.POST.get('email') or (request.user.email if request.user.is_authenticated else '')
     if not email_from:
@@ -931,6 +1094,23 @@ def soporte_submit(request):
     if not message:
         messages.error(request, 'El mensaje no puede estar vacío.')
         return redirect('soporte')
+
+    # Registrar la solicitud en la base de datos inmediatamente (fecha/hora automática)
+    try:
+        from .models import SolicitudSoporte
+        nombre_val = request.POST.get('nombre', '').strip()
+        if not nombre_val and request.user.is_authenticated:
+            nombre_val = getattr(request.user, 'get_full_name', lambda: '')() or getattr(request.user, 'username', '')
+        solicitud = SolicitudSoporte.objects.create(
+            usuario=request.user if request.user.is_authenticated else None,
+            nombre=nombre_val or None,
+            correo=email_from,
+            asunto=subject or 'Sin asunto',
+            mensaje=message,
+            estado='pending'
+        )
+    except Exception:
+        solicitud = None
 
     # Construir cuerpo con datos de contacto
     full_body = f"Solicitud de soporte desde {email_from}\n\n{message}"
@@ -943,8 +1123,22 @@ def soporte_submit(request):
             HistoriaActividad.objects.create(usuario=request.user if request.user.is_authenticated else None, accion=f"soporte_submit: {subject[:200]}")
         except Exception:
             pass
-        messages.success(request, 'Solicitud enviada al equipo de soporte. Gracias.')
+        # No marcar automáticamente como 'sent' — dejar como 'pending' para que el admin procese la solicitud.
+        try:
+            if solicitud:
+                # solo guardar actividad; mantener estado pendiente
+                solicitud.save()
+        except Exception:
+            pass
+        messages.success(request, 'Solicitud registrada. El equipo de soporte la procesará. Gracias.')
     except Exception as e:
+        # si falla el envío por email, marcar la solicitud con error y guardar mensaje
+        try:
+            if solicitud:
+                solicitud.error_message = str(e)
+                solicitud.save()
+        except Exception:
+            pass
         messages.error(request, f'Error al enviar la solicitud: {str(e)}')
 
     return redirect('soporte')
@@ -1251,37 +1445,79 @@ from django.views.decorators.csrf import csrf_exempt
 
 
 
+@csrf_exempt
 @require_POST
 def api_chat_help(request):
-    """Recibe POST con 'message' y devuelve JSON con la respuesta generada por Dialogflow.
-    Opciones:
-      - public=1 -> permite acceso anónimo (si se desea)
-      - stream=1 -> devuelve respuesta en streaming como SSE (text/event-stream)
+    """Recibe POST con 'message' y devuelve JSON con respuesta del asistente SISARM.
+    
+    Parámetros:
+      - message: Pregunta del usuario (requerido)
+      - session_id: ID de sesión para mantener contexto (opcional)
+      - public=1: Permite acceso anónimo (default: requiere login)
+    
+    Respuesta JSON:
+      {
+        "ok": true/false,
+        "reply": "texto de respuesta",
+        "action": null o {"open_support": "/soporte/"},
+        "action_text": null o "texto del botón"
+      }
     """
-    # permitir acceso público si se incluye public=1 en el body; si no, requiere login
-    is_public = (request.POST.get('public') == '1')
+    
+    # Determinar si la petición solicita acceso público (soporta form, querystring y JSON).
+    # Por UX: permitir acceso anónimo por defecto para la página de ayuda/chat.
+    is_public = False
+    try:
+        if request.POST.get('public') == '1' or request.GET.get('public') == '1':
+            is_public = True
+        else:
+            import json as _json
+            payload = _json.loads(request.body.decode('utf-8') or '{}')
+            if str(payload.get('public')) == '1':
+                is_public = True
+    except Exception:
+        # Si hay cualquier error al parsear, conservamos is_public=False y permitimos acceso anónimo
+        is_public = False
+
+    # Permitir acceso anónimo por defecto (este endpoint ofrece información pública de ayuda).
     if not request.user.is_authenticated and not is_public:
-        return JsonResponse({'ok': False, 'error': 'Autenticación requerida'}, status=403)
+        is_public = True
 
-    # Si el cliente Dialogflow no está disponible, no fallamos: usaremos el generador local como fallback
-
-    # soportar JSON y form-encoded
-    message = request.POST.get('message') or ''
+    # Obtener el mensaje (soportar JSON y form-encoded)
+    message = request.POST.get('message', '').strip()
     if not message:
         try:
             import json
             payload = json.loads(request.body.decode('utf-8') or '{}')
-            message = payload.get('message', '')
+            message = payload.get('message', '').strip()
         except Exception:
-            message = ''
+            pass
 
     if not message:
         return JsonResponse({'ok': False, 'error': 'message es requerido'}, status=400)
 
-    # si se pide streaming (stream=1), devolver StreamingHttpResponse con bloques tipo SSE (data: ...\n\n)
-    wants_stream = (request.POST.get('stream') == '1')
+    # Obtener session_id (para mantener contexto en Dialogflow)
+    try:
+        session_id = request.POST.get('session_id') or ''
+        if not session_id:
+            try:
+                import json as _json
+                payload = _json.loads(request.body.decode('utf-8') or '{}')
+                session_id = payload.get('session_id', '')
+            except Exception:
+                pass
+        
+        if not session_id:
+            # Generar session_id según usuario/sesión anónima
+            if request.user.is_authenticated:
+                session_id = f"user-{request.user.id}"
+            else:
+                sk = request.session.session_key or 'no-session'
+                session_id = f"anon-{sk}"
+    except Exception:
+        session_id = 'default'
 
-    # registrar la petición en ChatMessage (parcial — actualizamos respuesta después si es streaming)
+    # Registrar en historial de chat (si existe modelo ChatMessage)
     try:
         from .models import ChatMessage
         chat_entry = ChatMessage.objects.create(
@@ -1292,152 +1528,47 @@ def api_chat_help(request):
     except Exception:
         chat_entry = None
 
+    # Obtener respuesta del cliente (fallback local o Dialogflow)
+    # La función get_chat_response ya fue importada al inicio del módulo
+    reply = None
     try:
-        # Primero, manejar localmente intenciones simples para respuestas inmediatas
-        low = message.strip().lower()
-        local_triggers = ('soporte', 'contactar soporte', 'contactar', 'whatsapp', 'atienden por whatsapp', 'atienden por whats')
-        if any(t in low for t in local_triggers):
-            # Generar respuesta local corta y devolver inmediatamente
-            reply, sugerencias, action = _generate_local_reply(message, request)
-            if chat_entry:
-                try:
-                    chat_entry.respuesta = reply
-                    chat_entry.save()
-                except Exception:
-                    pass
-            if wants_stream:
-                import json as _json
-                def event_stream_local():
-                    yield f"data: {reply}\n\n"
-                    try:
-                        if action:
-                            yield f"data: __ACTION__{_json.dumps(action)}\n\n"
-                    except Exception:
-                        pass
-                return StreamingHttpResponse(event_stream_local(), content_type='text/event-stream')
-            action_text = None
-            if action and isinstance(action, dict):
-                action_text = action.get('action_text') or ('Abrir soporte' if 'open_support' in action else ('Abrir WhatsApp' if 'open_whatsapp' in action else None))
-            return JsonResponse({'ok': True, 'reply': reply, 'action': action, 'action_text': action_text})
-
-        # Intent: usar Dialogflow si está disponible. Siempre devolveremos algún texto:
-        # 1) si Dialogflow responde con texto no vacío, lo devolvemos; 2) si falla o responde vacío,
-        #    usamos el generador local como fallback y lo formateamos como respuesta definitiva
-        try:
-            if wants_stream:
-                # prefiera streaming si el cliente lo soporta
-                if stream_chat_response is not None:
-                    def event_stream():
-                        try:
-                            full = ''
-                            for chunk in stream_chat_response(message):
-                                full += chunk
-                                yield f"data: {chunk}\n\n"
-                            if chat_entry:
-                                try:
-                                    chat_entry.respuesta = full
-                                    chat_entry.save()
-                                except Exception:
-                                    pass
-                        except Exception:
-                            # fallback a respuesta local en caso de error
-                            fallback_reply, _, action = _generate_local_reply(message, request)
-                            yield f"data: {fallback_reply}\n\n"
-
-                    return StreamingHttpResponse(event_stream(), content_type='text/event-stream')
-                else:
-                    # no hay streaming disponible; obtener respuesta completa y devolver como único chunk
-                    if get_chat_response is not None:
-                        try:
-                            resp = get_chat_response(message)
-                        except Exception:
-                            resp = ''
-                        if resp and isinstance(resp, str) and resp.strip():
-                            if chat_entry:
-                                try:
-                                    chat_entry.respuesta = resp
-                                    chat_entry.save()
-                                except Exception:
-                                    pass
-                            return StreamingHttpResponse((f"data: {resp}\n\n",), content_type='text/event-stream')
-                        # si resp vacío o error, fallback local
-                        fallback_reply, _, action = _generate_local_reply(message, request)
-                        if chat_entry:
-                            try:
-                                chat_entry.respuesta = fallback_reply
-                                chat_entry.save()
-                            except Exception:
-                                pass
-                        return StreamingHttpResponse((f"data: {fallback_reply}\n\n",), content_type='text/event-stream')
-
-            # Non-streaming path: prefer Dialogflow, fallback to local
-            if get_chat_response is not None:
-                try:
-                    reply = get_chat_response(message)
-                except Exception:
-                    reply = ''
-                if reply and isinstance(reply, str) and reply.strip():
-                    if chat_entry:
-                        try:
-                            chat_entry.respuesta = reply
-                            chat_entry.save()
-                        except Exception:
-                            pass
-                    try:
-                        HistoriaActividad.objects.create(usuario=request.user if request.user.is_authenticated else None, accion=f"chat_help: {message[:200]}")
-                    except Exception:
-                        pass
-                    return JsonResponse({'ok': True, 'reply': reply})
-
-            # Si llegamos aquí, Dialogflow no está disponible o respondió vacío -> usar fallback local
-            fallback_reply, sugerencias, action = _generate_local_reply(message, request)
-            if chat_entry:
-                try:
-                    chat_entry.respuesta = fallback_reply
-                    chat_entry.save()
-                except Exception:
-                    pass
-            try:
-                HistoriaActividad.objects.create(usuario=request.user if request.user.is_authenticated else None, accion=f"chat_help: {message[:200]}")
-            except Exception:
-                pass
-            action_text = None
-            if action and isinstance(action, dict):
-                action_text = action.get('action_text') or ('Abrir soporte' if 'open_support' in action else ('Abrir WhatsApp' if 'open_whatsapp' in action else None))
-            return JsonResponse({'ok': True, 'reply': fallback_reply, 'action': action, 'action_text': action_text})
-        except Exception as e:
-            # En caso de cualquier excepción no prevista, intentar devolver algo útil
-            try:
-                fallback_reply, sugerencias, action = _generate_local_reply(message, request)
-                if chat_entry:
-                    try:
-                        chat_entry.respuesta = fallback_reply
-                        chat_entry.save()
-                    except Exception:
-                        pass
-                return JsonResponse({'ok': True, 'reply': fallback_reply})
-            except Exception:
-                return JsonResponse({'ok': False, 'error': str(e)}, status=500)
+        if get_chat_response is not None:
+            reply = get_chat_response(message, session_id=session_id, language_code='es')
     except Exception as e:
-    # si cualquier excepción por Dialogflow ocurre, responder con fallback local
-        try:
-            fallback_reply, _, action = _generate_local_reply(message, request)
-            if chat_entry:
-                try:
-                    chat_entry.respuesta = fallback_reply
-                    chat_entry.save()
-                except Exception:
-                    pass
-            action_text = None
-            if action and isinstance(action, dict):
-                action_text = action.get('action_text') or ('Abrir soporte' if 'open_support' in action else ('Abrir WhatsApp' if 'open_whatsapp' in action else None))
-            return JsonResponse({'ok': True, 'reply': fallback_reply, 'action': action, 'action_text': action_text})
-        except Exception:
-            return JsonResponse({'ok': False, 'error': str(e)}, status=500)
+        # Si hay error, usar respuesta por defecto
+        pass
     
+    if not reply:
+        reply = DEFAULT_RESPONSE
+
+    # Actualizar historial si existe
+    if chat_entry:
+        try:
+            chat_entry.respuesta = reply
+            chat_entry.save()
+        except Exception:
+            pass
+
+    # Registrar en actividad del usuario
+    try:
+        from .models import HistoriaActividad
+        HistoriaActividad.objects.create(
+            usuario=request.user if request.user.is_authenticated else None,
+            accion=f"chat_help: {message[:100]}"
+        )
+    except Exception:
+        pass
+
+    # Devolver respuesta en JSON
+    return JsonResponse({
+        'ok': True,
+        'reply': reply,
+        'action': None,
+        'action_text': None
+    })
+
 # Vista para estadísticas de aranceles
 @login_required
-@rol_requerido('Administrador')
 def estadisticas_aranceles(request):
     # filtros posibles: entidad_emite, capitulo (coma-separados)
     entidad = request.GET.get('entidad_emite', '').strip()

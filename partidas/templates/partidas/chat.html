@@ -259,6 +259,16 @@ async function sendMessageToApi(message, {stream=false, publico=false, timeout=3
     const csrftoken = getCookie('csrftoken');
     const body = new URLSearchParams();
     body.append('message', message);
+    // adjuntar session_id (contexto por usuario) si existe o generarlo
+    try{
+        let sessionId = localStorage.getItem('df_session_id');
+        if(!sessionId){
+            if(window.crypto && crypto.randomUUID){ sessionId = crypto.randomUUID(); }
+            else sessionId = 'anon-' + Math.random().toString(36).slice(2,10);
+            localStorage.setItem('df_session_id', sessionId);
+        }
+        body.append('session_id', sessionId);
+    }catch(e){ /* no crítico */ }
     if(stream) body.append('stream', '1');
     if(publico) body.append('public', '1');
 
@@ -274,8 +284,10 @@ async function sendMessageToApi(message, {stream=false, publico=false, timeout=3
             signal: controller.signal
         });
         clearTimeout(id);
-        if(stream) return resp;
-        return resp.json();
+        if(!resp.ok){
+            throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
+        }
+        return await resp.json();
     }catch(e){
         clearTimeout(id);
         throw e;
@@ -297,69 +309,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const typing = appendBubble('<div class="typing-loader"><span></span><span></span><span></span></div>', 'bot', true);
 
         try{
-            const resp = await sendMessageToApi(text, {stream: true});
-            const ctype = resp.headers && resp.headers.get ? resp.headers.get('content-type') : '';
-                if(ctype && ctype.indexOf('application/json') !== -1){
-                const data = await resp.json();
-                typing.remove();
-                if(data.ok){
-                    appendBubble(data.reply, 'bot', true);
-                    if(data.action){
-                        try{
-                            if(data.action.auto_open){ handleAction(data.action); }
-                            else showActionPanel(data.action);
-                        }catch(e){ console.error('action handling error', e); showActionPanel(data.action); }
-                    }
-                }else showErrorBubble('Error: ' + (data.error || 'respuesta inválida'));
-                return;
-            }
-            if(!resp.ok){ typing.remove(); showErrorBubble('Error: respuesta inválida del servidor.'); return; }
-
-            // procesar stream SSE-like
-            const reader = resp.body.getReader();
-            const decoder = new TextDecoder();
-            let partial = '';
-            const botDiv = appendBubble('', 'bot', false);
-            const contentDiv = botDiv.querySelector('.respuesta-contenido');
-            contentDiv.innerHTML = '';
-
-            while(true){
-                const {done, value} = await reader.read();
-                if(done) break;
-                const chunk = decoder.decode(value, {stream: true});
-                partial += chunk;
-                const parts = partial.split('\n\n');
-                for(let i=0;i<parts.length-1;i++){
-                    const part = parts[i];
-                    const clean = part.replace(/^data:\s*/, '');
-                    if(!clean) continue;
-                        if(clean.startsWith('__ACTION__')){
-                            try{
-                                const jsonPart = clean.replace(/^__ACTION__/, '');
-                                const actionObj = JSON.parse(jsonPart);
-                                if(actionObj && actionObj.auto_open){
-                                    try{ handleAction(actionObj); }catch(e){ showActionPanel(actionObj); }
-                                }else{
-                                    showActionPanel(actionObj);
-                                }
-                            }catch(e){ console.warn('No se pudo parsear action stream', e); }
-                            continue;
-                    }
-                    // Añadir texto al contenido; si detectamos tags básicos dejamos innerHTML
-                    if(/<\/?[a-z][\s\S]*>/i.test(clean)){
-                        contentDiv.innerHTML += clean;
-                    }else{
-                        contentDiv.textContent += clean;
-                    }
-                    botDiv.scrollIntoView();
-                }
-                partial = parts[parts.length-1];
-            }
-            if(partial.trim()){
-                const clean = partial.replace(/^data:\s*/, '');
-                if(/<\/?[a-z][\s\S]*>/i.test(clean)) contentDiv.innerHTML += clean; else contentDiv.textContent += clean;
-            }
+            const resp = await sendMessageToApi(text, {stream: false});
             typing.remove();
+            if(resp.ok){
+                appendBubble(resp.reply, 'bot', true);
+                if(resp.action){
+                    try{
+                        if(resp.action.auto_open){ handleAction(resp.action); }
+                        else showActionPanel(resp.action);
+                    }catch(e){ console.error('action handling error', e); showActionPanel(resp.action); }
+                }
+            }else showErrorBubble('Error: ' + (resp.error || 'respuesta inválida'));
         }catch(e){
             typing.remove();
             console.error(e);

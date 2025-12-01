@@ -1,0 +1,14 @@
+intent_name,training_phrases,responses
+Greeting,hola||buenas||buenas tardes||hola ¿qué tal?||buenos días||¿hay alguien?,¡Hola! Soy el Asistente de SISARM. Puedo ayudarte a Buscar partidas
+Help Options,ayuda||qué puedes hacer||opciones||me puedes ayudar||qué funciones tiene el sistema,Puedo ayudarte con: 1) Buscar Partidas; 2) Ver Manuales; 3) Mi Licencia; 4) Contactar Soporte. ¿Cuál eliges?
+System Function,cuál es la función de este sistema||qué hace el sistema||para qué sirve SISARM||qué puede hacer este sistema,SISARM ayuda a despachantes y operadores a buscar partidas arancelarias
+How to Search,cómo busco una partida||cómo buscar por código||cómo buscar por descripción||quiero buscar la partida 010121||ejemplo 010121,"Ve a ""Buscar Partidas"""
+Buscar Partida - Code Example,010121||buscar 010121||partida 010121,Buscando la partida 010121... (en la UI hazlo en Buscar Partidas). ¿Quieres que lo busque por ti?
+Filters,cómo uso los filtros||filtrar por capítulo||filtrar por gravamen||cómo aplico filtros,"Usa ""Capítulo"" para familias"
+Documents Required,qué documentos necesito para esta partida||documentos requeridos partida 010121||ver documentos de la partida,En la ficha de detalle verás los documentos exigidos
+License Status,mi licencia||cuánto dura mi licencia||mi licencia vence cuándo||estado de mi licencia,Para ver el estado de tu licencia inicia sesión y revisa el panel de inicio. Si quieres
+How to Renew,cómo renuevo mi licencia||renovar licencia||quiero renovar,Para renovar contacta al soporte desde el formulario (Menú → Soporte) e indica tu usuario y datos de contacto. El equipo responde en menos de 24 horas hábiles.
+Contact Support,contacto soporte||cómo contacto soporte||soporte||necesito ayuda humana,"Abre el formulario en ""Soporte"" y adjunta capturas o detalles. Nuestro equipo revisa y responde por correo."
+Manuals,dónde están los manuales||manual buscador||guías de usuario||ver manuales,"Los manuales están en la sección ""Manuales"" del menú; revisa la ""Guía del Buscador"" para ejemplos de búsquedas y filtros."
+Export Data,cómo exporto a excel||exportar resultados||generar excel,Los administradores pueden exportar resultados a Excel desde el panel de búsqueda. Indica los filtros que deseas aplicar.
+Fallback Improved,,Lo siento

@@ -1,0 +1,128 @@
+intent_name,training_phrases,responses
+Greeting,hola||buenas||buenas tardes||hola ¿qué tal?||buenos días||¿hay alguien?||buenos||saludos||¿me ayudas?,"¡Hola! Soy el Asistente de SISARM. Soy tu ayudante para buscar partidas arancelarias, entender cómo funciona el sistema y resolver tus dudas. ¿En qué puedo ayudarte hoy?"
+System Function,cuál es la función de este sistema||qué hace el sistema||para qué sirve SISARM||qué puede hacer este sistema||para qué es este programa||cuál es el propósito de SISARM||qué hace SISARM,"SISARM es un buscador inteligente de partidas arancelarias. Te ayuda a:
+- Buscar códigos de partidas arancelarias por descripción o código
+- Filtrar por capítulo, sección o requisitos aduanales
+- Ver documentos requeridos para cada partida
+- Gestionar tu licencia de usuario
+
+Es una herramienta esencial para despachantes aduanales, operadores de comercio exterior y profesionales del sector logístico."
+Help Options,ayuda||qué puedes hacer||opciones||me puedes ayudar||qué funciones tiene el sistema||cuál es tu función||cómo funcionas,"Soy tu asistente personal. Puedo ayudarte con:
+
+1️⃣ **Buscar Partidas** - Te guío en búsquedas por código o descripción
+2️⃣ **Ver Manuales** - Acceso a guías y tutoriales del sistema
+3️⃣ **Mi Licencia** - Verificar estado y renovación
+4️⃣ **Contactar Soporte** - Conectarte con el equipo técnico
+
+¿Cuál de estos temas te interesa?"
+How to Search,cómo busco una partida||cómo buscar por código||cómo buscar por descripción||quiero buscar una partida||búsqueda de partidas||explicame como buscar,"Para buscar una partida arancelaria:
+
+1. Ve a **Buscar Partidas** en el menú principal
+2. Puedes buscar de dos formas:
+   - **Por Código**: Ingresa el código de partida (ej: 010121)
+   - **Por Descripción**: Escribe qué es (ej: 'leche en polvo', 'carne de res')
+3. Presiona Buscar o Enter
+4. Usa los filtros a la izquierda para refinar resultados
+
+¿Quieres un ejemplo específico?"
+Code Search Example,010121||buscar 010121||partida 010121||buscar carne||buscar lácteos||búsqueda de productos,"Ejemplo de búsqueda:
+
+**Para la partida 010121** (Carne de animales de la especie bovina):
+1. Abre Buscar Partidas
+2. En la barra de búsqueda escribe: 010121
+3. Verás el resultado con descripción completa
+4. Haz clic para ver documentos requeridos y más detalles
+
+También puedes escribir 'carne de res' o 'bovino' y el sistema te mostrará opciones relacionadas."
+Filters Explanation,cómo uso los filtros||filtrar por capítulo||filtrar por gravamen||cómo aplico filtros||para qué sirven los filtros||qué son los filtros,"Los **filtros** te permiten refinar búsquedas:
+
+- **Capítulo**: Agrupa partidas por categoría (ej: Animales vivos, Productos lácteos)
+- **Gravamen**: Filtra por aranceles aduanales
+- **Requisitos**: Muestra documentación requerida
+
+Cómo usar:
+1. Realiza una búsqueda inicial
+2. A la izquierda verás los filtros disponibles
+3. Haz clic en lo que te interese
+4. Los resultados se actualizan automáticamente
+
+¿Necesitas filtrar algo específico?"
+Documents Required,qué documentos necesito para esta partida||documentos requeridos||ver documentos||qué documentación se necesita||documentos de partida,"Para ver los **documentos requeridos** de una partida:
+
+1. Busca la partida que te interesa
+2. Haz clic en el resultado para abrir detalles
+3. En la sección **Documentación Requerida** verás:
+   - Certificados sanitarios
+   - Permisos especiales
+   - Documentos aduanales
+   - Certificaciones de origen
+
+Si necesitas claridad sobre un documento específico, puedes contactar al soporte."
+License Status,mi licencia||cuánto dura mi licencia||mi licencia vence cuándo||estado de mi licencia||ver licencia||información de licencia||cuenta premium||verificar licencia,"Para verificar tu **estado de licencia**:
+
+1. Inicia sesión en tu cuenta
+2. En el Panel de Inicio verás:
+   - Estado actual (Activa/Vencida)
+   - Fecha de vencimiento
+   - Búsquedas restantes (si aplica)
+
+Si tu licencia está próxima a vencer, recibirás notificaciones. ¿Necesitas renovarla?"
+How to Renew,cómo renuevo mi licencia||renovar licencia||quiero renovar||extender licencia||reactivar licencia||licencia vencida,"Para **renovar tu licencia**:
+
+1. Ve a **Soporte** en el menú
+2. Abre el formulario de contacto
+3. Indica que deseas renovar y proporciona:
+   - Tu usuario
+   - Correo de contacto
+   - Teléfono (opcional)
+4. Adjunta capturas si es necesario
+5. El equipo responde en menos de 24 horas hábiles
+
+¿Quiero abrir el formulario de Soporte ahora?"
+Contact Support,contacto soporte||cómo contacto soporte||soporte||necesito ayuda humana||quiero hablar con alguien||equipo técnico||atención al cliente,"Para **contactar al equipo de soporte**:
+
+1. Haz clic en **Soporte** (menú principal)
+2. Completa el formulario con:
+   - Tu nombre
+   - Correo electrónico
+   - Tema (Búsqueda, Licencia, Técnico, Otro)
+   - Descripción detallada del problema
+3. Adjunta capturas si es relevante
+
+El equipo técnico revisa todos los mensajes y responde por correo en máximo 24 horas hábiles.
+
+¿Abrimos el formulario ahora?"
+Manuals and Guides,dónde están los manuales||manual buscador||guías de usuario||ver manuales||cómo usar el sistema||tutorial||documentación,"En la sección **Manuales** del menú encontrarás:
+
+📖 **Guía del Buscador** - Ejemplos de búsquedas avanzadas
+📖 **Guía de Filtros** - Cómo usar cada filtro disponible
+📖 **FAQ** - Preguntas frecuentes resueltas
+📖 **Glosario Aduanal** - Términos técnicos explicados
+📖 **Guía de Licencias** - Cómo gestionar tu suscripción
+
+Todos los manuales tienen ejemplos prácticos. ¿Cuál te interesa?"
+Export Data,cómo exporto a excel||exportar resultados||generar excel||descargar resultados||exportar búsqueda,"Para **exportar a Excel**:
+
+1. Realiza una búsqueda en Buscar Partidas
+2. Haz clic en el botón **Descargar/Exportar** (generalmente en la esquina superior)
+3. Selecciona el formato: Excel, PDF o CSV
+4. Se descargará un archivo con los resultados filtrados
+
+El archivo incluye:
+- Código de partida
+- Descripción
+- Aranceles
+- Requisitos
+- Documentación necesaria
+
+¿Necesitas exportar búsquedas específicas?"
+General Question,qué es||cómo funciona||explícame||cuéntame||dime||información de||detalles de||más sobre,"Entiendo que quieres más información. Puedo ayudarte con:
+- **¿Qué es SISARM?** - Te explico el sistema
+- **¿Cómo busco?** - Guía de búsquedas
+- **¿Cómo filtro?** - Uso de filtros
+- **¿Licencia?** - Información de suscripción
+- **¿Documentos?** - Requisitos aduanales
+- **¿Soporte?** - Contactar equipo técnico
+
+¿Cuál de estos temas te interesa?"
+Fallback Improved,,Disculpa, no entendí bien tu pregunta. Pero puedo ayudarte con: Buscar Partidas | Manuales | Mi Licencia | Contactar Soporte. ¿Cuál de estos prefieres?

@@ -13,36 +13,33 @@
 <body class="{% block body_class %}bg-light{% endblock %}">
 
     {% if not ocultar_navbar %}
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark" style="position: relative;">
-        <div class="container">
-            <!-- Botón volver atrás en la esquina izquierda (posicionable) -->
-            <button class="btn btn-sm btn-outline-light back-button" onclick="history.back();" title="Volver atrás">
-                ←
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container-fluid d-flex align-items-center gap-3">
+            <!-- Botón Volver Atrás -->
+            <button class="back-btn" onclick="goBackCustom()" title="Volver atrás">
+                <span style="font-size: 1.3rem;">←</span>
             </button>
-            <a class="navbar-brand" href="#">SISARM Search</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                {% if user.is_authenticated and not ocultar_botones and 'accounts/login' not in request.path %}
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item"><a class="nav-link" href="{% url 'buscar_partidas' %}">Buscar Partidas</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{% url 'historial_buscador' %}">Historial</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{% url 'chat_asistente' %}">Chat de Ayuda</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{% url 'manuales' %}">Manuales</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{% url 'estadisticas_aranceles' %}">Estadísticas de Aranceles</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{% url 'importar_excel' %}">Importar</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{% url 'panel_partidas' %}">Admin Partidas</a></li>
-                    <li class="nav-item d-flex align-items-center">
-                        <a class="nav-link me-2" href="{% url 'inicio' %}" style="padding: 0.25rem 0.5rem;">Inicio</a>
-                        <form method="post" action="{% url 'logout' %}">
-                            {% csrf_token %}
-                            <button type="submit" class="nav-link btn btn-link text-warning w-100 text-start" style="border: none; padding: 0.25rem 0.5rem;">Cerrar sesión</button>
-                        </form>
-                    </li>
-                </ul>
-                {% endif %}
+
+            <!-- Logo/marca -->
+            <a class="navbar-brand flex-shrink-0 me-auto" href="#" style="white-space: nowrap;">SISARM Search</a>
+            
+            <!-- Menú de navegación -->
+            {% if user.is_authenticated and not ocultar_botones and 'accounts/login' not in request.path %}
+            <div class="d-flex align-items-center gap-1" style="overflow-x: auto; flex-wrap: wrap; justify-content: flex-end;">
+                <a class="nav-link text-light" href="{% url 'buscar_partidas' %}" style="white-space: nowrap; font-size: 0.9rem;">Buscar Partidas</a>
+                <a class="nav-link text-light" href="{% url 'historial_buscador' %}" style="white-space: nowrap; font-size: 0.9rem;">Historial</a>
+                <a class="nav-link text-light" href="{% url 'chat_asistente' %}" style="white-space: nowrap; font-size: 0.9rem;">Chat de Ayuda</a>
+                <a class="nav-link text-light" href="{% url 'manuales' %}" style="white-space: nowrap; font-size: 0.9rem;">Manuales</a>
+                <a class="nav-link text-light" href="{% url 'estadisticas_aranceles' %}" style="white-space: nowrap; font-size: 0.9rem;">Estadísticas</a>
+                <a class="nav-link text-light" href="{% url 'importar_excel' %}" style="white-space: nowrap; font-size: 0.9rem;">Importar</a>
+                <a class="nav-link text-light" href="{% url 'panel_partidas' %}" style="white-space: nowrap; font-size: 0.9rem;">Admin</a>
+                <a class="nav-link text-light" href="{% url 'inicio' %}" style="white-space: nowrap; font-size: 0.9rem;">Inicio</a>
+                <form method="post" action="{% url 'logout' %}" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="nav-link btn btn-link text-warning" style="border: none; padding: 0.5rem 0.25rem; text-decoration: none; white-space: nowrap; font-size: 0.9rem;">Cerrar sesión</button>
+                </form>
             </div>
+            {% endif %}
         </div>
     </nav>
     {% endif %}
@@ -79,12 +76,54 @@
     </div>
 
     <style>
-        /* Estilo para el botón "Volver atrás": ajustar 'left' para mover más/menos a la izquierda */
-        .back-button {
-            position: absolute;
-            left: 8px; /* cambia este valor para mover el botón horizontalmente */
-            top: 8px;
-            z-index: 1060;
+        /* Navbar mejorado */
+        .navbar {
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .navbar-brand {
+            font-weight: 600;
+            font-size: 1.1rem;
+            letter-spacing: 0.5px;
+        }
+
+        .nav-link {
+            padding: 0.5rem 0.75rem !important;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        .nav-link:hover {
+            color: #ffc107 !important;
+        }
+
+        /* Estilos del botón volver */
+        .back-btn {
+            background: linear-gradient(135deg, #ffc107 0%, #ffb300 100%);
+            border: none;
+            border-radius: 50%;
+            width: 45px;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(255, 193, 7, 0.3);
+            flex-shrink: 0;
+        }
+
+        .back-btn:hover {
+            background: linear-gradient(135deg, #ffb300 0%, #ff9800 100%);
+            transform: scale(1.1);
+            box-shadow: 0 6px 12px rgba(255, 152, 0, 0.4);
+        }
+
+        .back-btn:active {
+            transform: scale(0.95);
+            box-shadow: 0 2px 4px rgba(255, 152, 0, 0.4);
         }
 
         /* (navbar no fija - comportamiento por defecto) */
@@ -171,7 +210,72 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     
-    
+    <!-- Sistema de historial para volver atrás múltiples veces -->
+    <script>
+        (function() {
+            const HISTORY_KEY = 'sisarmPageHistory';
+            const MAX_HISTORY = 100;
+            
+            // Inicializar o recuperar el historial
+            function getHistory() {
+                try {
+                    return JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
+                } catch(e) {
+                    return [];
+                }
+            }
+            
+            function saveHistory(history) {
+                try {
+                    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+                } catch(e) {
+                    console.error('Error al guardar historial:', e);
+                }
+            }
+            
+            // Registrar la página actual al cargar
+            window.addEventListener('load', function() {
+                const currentUrl = window.location.href;
+                let history = getHistory();
+                
+                // Evitar duplicados consecutivos
+                if (history.length === 0 || history[history.length - 1] !== currentUrl) {
+                    history.push(currentUrl);
+                    
+                    // Limitar el tamaño del historial
+                    if (history.length > MAX_HISTORY) {
+                        history.shift();
+                    }
+                    
+                    saveHistory(history);
+                }
+            });
+            
+            // Función para volver atrás
+            window.goBackCustom = function() {
+                let history = getHistory();
+                
+                if (history.length <= 1) {
+                    // Si no hay más páginas en el historial, ir a inicio
+                    window.location.href = '/inicio/';
+                    return;
+                }
+                
+                // Remover la página actual
+                history.pop();
+                
+                // Obtener la página anterior
+                const previousUrl = history[history.length - 1];
+                
+                // Guardar el historial actualizado
+                saveHistory(history);
+                
+                // Navegar a la página anterior
+                window.location.href = previousUrl;
+            };
+        })();
+    </script>
+
     <!-- Script para control de tamaño de texto -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {

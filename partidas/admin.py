@@ -7,6 +7,7 @@ from .models import (
 from .models import PartidaReferencia
 from .models import SearchStatisticTotal
 from .models import SearchStatisticProductTotal
+from .models import SolicitudSoporte
 # SearchStatistic and SearchStatisticTotal are kept in models for analytics
 # but not registered in the admin to avoid showing the ranking button.
 from django.utils import timezone
@@ -350,6 +351,41 @@ class SearchStatisticProductTotalAdmin(admin.ModelAdmin):
         if extra_context:
             extra.update(extra_context)
         return super().changelist_view(request, extra_context=extra)
+
+
+    @admin.register(SolicitudSoporte)
+    class SolicitudSoporteAdmin(admin.ModelAdmin):
+        list_display = ('creado_en', 'usuario', 'nombre', 'correo', 'asunto', 'estado')
+        list_filter = ('estado', 'creado_en')
+        search_fields = ('correo', 'asunto', 'mensaje', 'usuario__username', 'nombre')
+        readonly_fields = ('creado_en',)
+        ordering = ('-creado_en',)
+        # permitir edición rápida del estado en la lista y acciones masivas
+        list_editable = ('estado',)
+        actions = ['marcar_como_enviado', 'marcar_como_pendiente', 'marcar_como_error', 'abrir_sistema']
+
+        def marcar_como_enviado(self, request, queryset):
+            updated = queryset.update(estado='sent')
+            self.message_user(request, f"{updated} solicitud(es) marcadas como 'Enviado'.", level=messages.SUCCESS)
+
+        def marcar_como_pendiente(self, request, queryset):
+            updated = queryset.update(estado='pending')
+            self.message_user(request, f"{updated} solicitud(es) marcadas como 'Pendiente'.", level=messages.SUCCESS)
+
+        def marcar_como_error(self, request, queryset):
+            updated = queryset.update(estado='error')
+            self.message_user(request, f"{updated} solicitud(es) marcadas como 'Error'.", level=messages.WARNING)
+
+        marcar_como_enviado.short_description = "Marcar solicitudes seleccionadas como 'Enviado'"
+        marcar_como_pendiente.short_description = "Marcar solicitudes seleccionadas como 'Pendiente'"
+        marcar_como_error.short_description = "Marcar solicitudes seleccionadas como 'Error'"
+
+        def abrir_sistema(self, request, queryset):
+            """Acción que redirige al administrador al sistema principal (/inicio/)."""
+            from django.shortcuts import redirect
+            return redirect('/inicio/')
+
+        abrir_sistema.short_description = 'Abrir sistema (ir a /inicio/)'
 
 
 @admin.register(NotificationLog)

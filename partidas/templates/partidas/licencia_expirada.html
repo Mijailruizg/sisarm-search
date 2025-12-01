@@ -10,5 +10,10 @@
 
 {% block content %}
 <h2>Licencia Expirada</h2>
-<p class="alert alert-danger">Tu acceso ha sido suspendido porque tu licencia ha expirado. Contacta al administrador para renovarla.</p>
+<p class="alert alert-danger">Tu acceso ha sido suspendido porque tu licencia ha expirado. Puedes renovar tu licencia o solicitar ayuda al equipo de soporte.</p>
+
+<p>
+	<a href="{% url 'solicitar_renovacion' %}" class="btn btn-primary">Solicitar renovación / Contactar soporte</a>
+</p>
+<!-- Los botones de 'Iniciar sesión' y 'Volver' se quitaron para respetar el botón "Volver" del navbar. -->
 {% endblock %}

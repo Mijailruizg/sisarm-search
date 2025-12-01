@@ -1,0 +1,937 @@
+{
+  "intents": [
+    {
+      "displayName": "Greeting",
+      "trainingPhrases": [
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "hola"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "buenas"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "buenas tardes"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "hola ¿qué tal?"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "buenos días"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "¿hay alguien?"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "buenos"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "saludos"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "¿me ayudas?"
+            }
+          ]
+        }
+      ],
+      "messages": [
+        {
+          "text": {
+            "text": [
+              "¡Hola! Soy el Asistente de SISARM. Soy tu ayudante para buscar partidas arancelarias, entender cómo funciona el sistema y resolver tus dudas. ¿En qué puedo ayudarte hoy?"
+            ]
+          }
+        }
+      ],
+      "priority": 500000,
+      "isFallback": false,
+      "mlDisabled": false
+    },
+    {
+      "displayName": "System Function",
+      "trainingPhrases": [
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "cuál es la función de este sistema"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "qué hace el sistema"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "para qué sirve SISARM"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "qué puede hacer este sistema"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "para qué es este programa"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "cuál es el propósito de SISARM"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "qué hace SISARM"
+            }
+          ]
+        }
+      ],
+      "messages": [
+        {
+          "text": {
+            "text": [
+              "SISARM es un buscador inteligente de partidas arancelarias. Te ayuda a:\n- Buscar códigos de partidas arancelarias por descripción o código\n- Filtrar por capítulo, sección o requisitos aduanales\n- Ver documentos requeridos para cada partida\n- Gestionar tu licencia de usuario\n\nEs una herramienta esencial para despachantes aduanales, operadores de comercio exterior y profesionales del sector logístico."
+            ]
+          }
+        }
+      ],
+      "priority": 500000,
+      "isFallback": false,
+      "mlDisabled": false
+    },
+    {
+      "displayName": "Help Options",
+      "trainingPhrases": [
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "ayuda"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "qué puedes hacer"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "opciones"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "me puedes ayudar"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "qué funciones tiene el sistema"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "cuál es tu función"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "cómo funcionas"
+            }
+          ]
+        }
+      ],
+      "messages": [
+        {
+          "text": {
+            "text": [
+              "Soy tu asistente personal. Puedo ayudarte con:\n\n1️⃣ **Buscar Partidas** - Te guío en búsquedas por código o descripción\n2️⃣ **Ver Manuales** - Acceso a guías y tutoriales del sistema\n3️⃣ **Mi Licencia** - Verificar estado y renovación\n4️⃣ **Contactar Soporte** - Conectarte con el equipo técnico\n\n¿Cuál de estos temas te interesa?"
+            ]
+          }
+        }
+      ],
+      "priority": 500000,
+      "isFallback": false,
+      "mlDisabled": false
+    },
+    {
+      "displayName": "How to Search",
+      "trainingPhrases": [
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "cómo busco una partida"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "cómo buscar por código"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "cómo buscar por descripción"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "quiero buscar una partida"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "búsqueda de partidas"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "explicame como buscar"
+            }
+          ]
+        }
+      ],
+      "messages": [
+        {
+          "text": {
+            "text": [
+              "Para buscar una partida arancelaria:\n\n1. Ve a **Buscar Partidas** en el menú principal\n2. Puedes buscar de dos formas:\n   - **Por Código**: Ingresa el código de partida (ej: 010121)\n   - **Por Descripción**: Escribe qué es (ej: 'leche en polvo', 'carne de res')\n3. Presiona Buscar o Enter\n4. Usa los filtros a la izquierda para refinar resultados\n\n¿Quieres un ejemplo específico?"
+            ]
+          }
+        }
+      ],
+      "priority": 500000,
+      "isFallback": false,
+      "mlDisabled": false
+    },
+    {
+      "displayName": "Code Search Example",
+      "trainingPhrases": [
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "010121"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "buscar 010121"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "partida 010121"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "buscar carne"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "buscar lácteos"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "búsqueda de productos"
+            }
+          ]
+        }
+      ],
+      "messages": [
+        {
+          "text": {
+            "text": [
+              "Ejemplo de búsqueda:\n\n**Para la partida 010121** (Carne de animales de la especie bovina):\n1. Abre Buscar Partidas\n2. En la barra de búsqueda escribe: 010121\n3. Verás el resultado con descripción completa\n4. Haz clic para ver documentos requeridos y más detalles\n\nTambién puedes escribir 'carne de res' o 'bovino' y el sistema te mostrará opciones relacionadas."
+            ]
+          }
+        }
+      ],
+      "priority": 500000,
+      "isFallback": false,
+      "mlDisabled": false
+    },
+    {
+      "displayName": "Filters Explanation",
+      "trainingPhrases": [
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "cómo uso los filtros"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "filtrar por capítulo"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "filtrar por gravamen"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "cómo aplico filtros"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "para qué sirven los filtros"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "qué son los filtros"
+            }
+          ]
+        }
+      ],
+      "messages": [
+        {
+          "text": {
+            "text": [
+              "Los **filtros** te permiten refinar búsquedas:\n\n- **Capítulo**: Agrupa partidas por categoría (ej: Animales vivos, Productos lácteos)\n- **Gravamen**: Filtra por aranceles aduanales\n- **Requisitos**: Muestra documentación requerida\n\nCómo usar:\n1. Realiza una búsqueda inicial\n2. A la izquierda verás los filtros disponibles\n3. Haz clic en lo que te interese\n4. Los resultados se actualizan automáticamente\n\n¿Necesitas filtrar algo específico?"
+            ]
+          }
+        }
+      ],
+      "priority": 500000,
+      "isFallback": false,
+      "mlDisabled": false
+    },
+    {
+      "displayName": "Documents Required",
+      "trainingPhrases": [
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "qué documentos necesito para esta partida"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "documentos requeridos"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "ver documentos"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "qué documentación se necesita"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "documentos de partida"
+            }
+          ]
+        }
+      ],
+      "messages": [
+        {
+          "text": {
+            "text": [
+              "Para ver los **documentos requeridos** de una partida:\n\n1. Busca la partida que te interesa\n2. Haz clic en el resultado para abrir detalles\n3. En la sección **Documentación Requerida** verás:\n   - Certificados sanitarios\n   - Permisos especiales\n   - Documentos aduanales\n   - Certificaciones de origen\n\nSi necesitas claridad sobre un documento específico, puedes contactar al soporte."
+            ]
+          }
+        }
+      ],
+      "priority": 500000,
+      "isFallback": false,
+      "mlDisabled": false
+    },
+    {
+      "displayName": "License Status",
+      "trainingPhrases": [
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "mi licencia"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "cuánto dura mi licencia"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "mi licencia vence cuándo"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "estado de mi licencia"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "ver licencia"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "información de licencia"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "cuenta premium"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "verificar licencia"
+            }
+          ]
+        }
+      ],
+      "messages": [
+        {
+          "text": {
+            "text": [
+              "Para verificar tu **estado de licencia**:\n\n1. Inicia sesión en tu cuenta\n2. En el Panel de Inicio verás:\n   - Estado actual (Activa/Vencida)\n   - Fecha de vencimiento\n   - Búsquedas restantes (si aplica)\n\nSi tu licencia está próxima a vencer, recibirás notificaciones. ¿Necesitas renovarla?"
+            ]
+          }
+        }
+      ],
+      "priority": 500000,
+      "isFallback": false,
+      "mlDisabled": false
+    },
+    {
+      "displayName": "How to Renew",
+      "trainingPhrases": [
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "cómo renuevo mi licencia"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "renovar licencia"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "quiero renovar"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "extender licencia"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "reactivar licencia"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "licencia vencida"
+            }
+          ]
+        }
+      ],
+      "messages": [
+        {
+          "text": {
+            "text": [
+              "Para **renovar tu licencia**:\n\n1. Ve a **Soporte** en el menú\n2. Abre el formulario de contacto\n3. Indica que deseas renovar y proporciona:\n   - Tu usuario\n   - Correo de contacto\n   - Teléfono (opcional)\n4. Adjunta capturas si es necesario\n5. El equipo responde en menos de 24 horas hábiles\n\n¿Quiero abrir el formulario de Soporte ahora?"
+            ]
+          }
+        }
+      ],
+      "priority": 500000,
+      "isFallback": false,
+      "mlDisabled": false
+    },
+    {
+      "displayName": "Contact Support",
+      "trainingPhrases": [
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "contacto soporte"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "cómo contacto soporte"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "soporte"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "necesito ayuda humana"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "quiero hablar con alguien"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "equipo técnico"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "atención al cliente"
+            }
+          ]
+        }
+      ],
+      "messages": [
+        {
+          "text": {
+            "text": [
+              "Para **contactar al equipo de soporte**:\n\n1. Haz clic en **Soporte** (menú principal)\n2. Completa el formulario con:\n   - Tu nombre\n   - Correo electrónico\n   - Tema (Búsqueda, Licencia, Técnico, Otro)\n   - Descripción detallada del problema\n3. Adjunta capturas si es relevante\n\nEl equipo técnico revisa todos los mensajes y responde por correo en máximo 24 horas hábiles.\n\n¿Abrimos el formulario ahora?"
+            ]
+          }
+        }
+      ],
+      "priority": 500000,
+      "isFallback": false,
+      "mlDisabled": false
+    },
+    {
+      "displayName": "Manuals and Guides",
+      "trainingPhrases": [
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "dónde están los manuales"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "manual buscador"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "guías de usuario"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "ver manuales"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "cómo usar el sistema"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "tutorial"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "documentación"
+            }
+          ]
+        }
+      ],
+      "messages": [
+        {
+          "text": {
+            "text": [
+              "En la sección **Manuales** del menú encontrarás:\n\n📖 **Guía del Buscador** - Ejemplos de búsquedas avanzadas\n📖 **Guía de Filtros** - Cómo usar cada filtro disponible\n📖 **FAQ** - Preguntas frecuentes resueltas\n📖 **Glosario Aduanal** - Términos técnicos explicados\n📖 **Guía de Licencias** - Cómo gestionar tu suscripción\n\nTodos los manuales tienen ejemplos prácticos. ¿Cuál te interesa?"
+            ]
+          }
+        }
+      ],
+      "priority": 500000,
+      "isFallback": false,
+      "mlDisabled": false
+    },
+    {
+      "displayName": "Export Data",
+      "trainingPhrases": [
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "cómo exporto a excel"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "exportar resultados"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "generar excel"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "descargar resultados"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "exportar búsqueda"
+            }
+          ]
+        }
+      ],
+      "messages": [
+        {
+          "text": {
+            "text": [
+              "Para **exportar a Excel**:\n\n1. Realiza una búsqueda en Buscar Partidas\n2. Haz clic en el botón **Descargar/Exportar** (generalmente en la esquina superior)\n3. Selecciona el formato: Excel, PDF o CSV\n4. Se descargará un archivo con los resultados filtrados\n\nEl archivo incluye:\n- Código de partida\n- Descripción\n- Aranceles\n- Requisitos\n- Documentación necesaria\n\n¿Necesitas exportar búsquedas específicas?"
+            ]
+          }
+        }
+      ],
+      "priority": 500000,
+      "isFallback": false,
+      "mlDisabled": false
+    },
+    {
+      "displayName": "General Question",
+      "trainingPhrases": [
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "qué es"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "cómo funciona"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "explícame"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "cuéntame"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "dime"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "información de"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "detalles de"
+            }
+          ]
+        },
+        {
+          "type": "EXAMPLE",
+          "parts": [
+            {
+              "text": "más sobre"
+            }
+          ]
+        }
+      ],
+      "messages": [
+        {
+          "text": {
+            "text": [
+              "Entiendo que quieres más información. Puedo ayudarte con:\n- **¿Qué es SISARM?** - Te explico el sistema\n- **¿Cómo busco?** - Guía de búsquedas\n- **¿Cómo filtro?** - Uso de filtros\n- **¿Licencia?** - Información de suscripción\n- **¿Documentos?** - Requisitos aduanales\n- **¿Soporte?** - Contactar equipo técnico\n\n¿Cuál de estos temas te interesa?"
+            ]
+          }
+        }
+      ],
+      "priority": 500000,
+      "isFallback": false,
+      "mlDisabled": false
+    },
+    {
+      "displayName": "Fallback Improved",
+      "trainingPhrases": [],
+      "messages": [
+        {
+          "text": {
+            "text": [
+              "Disculpa"
+            ]
+          }
+        }
+      ],
+      "priority": 500000,
+      "isFallback": false,
+      "mlDisabled": false
+    }
+  ]
+}

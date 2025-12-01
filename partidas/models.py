@@ -64,6 +64,26 @@ class HistoriaActividad(models.Model):
     accion = models.TextField()
     fecha_hora = models.DateTimeField(auto_now_add=True)
 
+class SolicitudSoporte(models.Model):
+    """Registro de solicitudes enviadas por usuarios al equipo de soporte."""
+    ESTADO_CHOICES = (
+        ('pending', 'Pendiente'),
+        ('sent', 'Enviado'),
+        ('error', 'Error'),
+    )
+    # nombre del remitente (puede ser proporcionado por anónimos o rellenado desde el usuario autenticado)
+    nombre = models.CharField(max_length=150, blank=True, null=True)
+    usuario = models.ForeignKey(Usuario, on_delete=models.SET_NULL, null=True, blank=True)
+    correo = models.CharField(max_length=254)
+    asunto = models.CharField(max_length=255, blank=True, null=True)
+    mensaje = models.TextField()
+    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='pending')
+    error_message = models.TextField(blank=True, null=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        user = self.usuario.username if self.usuario else 'Anónimo'
+        return f"{self.creado_en} | {user} | {self.asunto or 'Sin asunto'}"
 class Manual(models.Model):
     tipo = models.CharField(max_length=50)
     url_pdf = models.URLField()
