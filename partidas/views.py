@@ -1,3 +1,18 @@
+"""
+VISTAS PRINCIPALES DEL SISTEMA SISARM SEARCH
+==============================================
+Módulo: partidas/views.py
+
+Funcionalidades principales:
+  - Búsqueda de partidas arancelarias (PartidaArancelaria)
+  - Importación de datos desde Excel
+  - Gestión de licencias temporales de usuarios
+  - Chat asistido con Dialogflow
+  - Exportación de datos (Excel, PDF)
+  - Estadísticas y reportes
+  - Autenticación y control de roles
+"""
+
 from django.shortcuts import render, get_object_or_404, redirect
 from .models import PartidaArancelaria, Busqueda, Manual, LicenciaTemporal, Rol, PartidaReferencia, HistoriaActividad
 from .forms import CargarExcelForm, PartidaForm, RegistroUsuarioForm
@@ -17,10 +32,8 @@ from django.core.mail import send_mail
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 import csv
-from .decorators import rol_requerido
 from .models import ExportLog
 from .models import ClickLog
-
 from django.core.paginator import Paginator
 from openpyxl import Workbook
 from openpyxl.utils import get_column_letter

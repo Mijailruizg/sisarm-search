@@ -56,25 +56,6 @@
         {% block content %}{% endblock %}
     </main>
 
-    {% if not ocultar_navbar %}
-    <a href="{% url 'soporte' %}" class="whatsapp-burbuja" title="Ir al soporte del sistema">
-        <div class="headset-overlay">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="#003366" viewBox="0 0 24 24" width="20" height="20">
-                <path d="M12 1C6.486 1 2 5.486 2 11v5a3 3 0 0 0 3 3h1v-8H5c0-3.86 3.14-7 7-7s7 3.14 7 7h-1v8h1a3 3 0 0 0 3-3v-5c0-5.514-4.486-10-10-10z"/>
-            </svg>
-        </div>
-    </a>
-    {% endif %}
-
-    <div class="marca-agua">@2025 SIS Code Creator - Para SISARM Bolivia</div>
-
-    <!-- Control de tamaño de texto -->
-    <div class="text-size-controls">
-        <button class="text-size-btn" data-size="small" title="Texto pequeño">A-</button>
-        <button class="text-size-btn" data-size="normal" title="Texto normal">A</button>
-        <button class="text-size-btn" data-size="large" title="Texto grande">A+</button>
-    </div>
-
     <style>
         /* Navbar mejorado */
         .navbar {
@@ -149,19 +130,8 @@
             transform: scale(1.1);
         }
 
-        .headset-overlay {
-            position: absolute;
-            bottom: -8px;
-            right: -8px;
-            background-color: #ffffff;
-            border-radius: 50%;
-            padding: 4px;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-            z-index: 10000;
-        }
-
-        /* Estilo compartido para marca de agua y texto de licencia */
-        .marca-agua, .texto-licencia {
+        /* Estilo compartido para texto de licencia */
+        .texto-licencia {
             position: fixed;
             opacity: 0.85;
             font-size: 0.85rem;
@@ -171,40 +141,10 @@
             text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.6);
             pointer-events: none;
             z-index: 1000;
-        }
-        .marca-agua { bottom: 5px; right: 10px; }
-        .texto-licencia { bottom: 40px; right: 20px; text-align: right; width: 260px; }
-
-        /* Estilos para controles de tamaño de texto */
-        .text-size-controls {
-            position: fixed;
-            left: 10px;
-            bottom: 10px;
-            z-index: 1000;
-            display: flex;
-            gap: 4px;
-            background: rgba(0, 0, 0, 0.4);
-            padding: 6px;
-            border-radius: 4px;
-        }
-
-        .text-size-btn {
-            background: transparent;
-            color: white;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 3px;
-            padding: 2px 8px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .text-size-btn:hover {
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        .text-size-btn.active {
-            background: rgba(255, 255, 255, 0.2);
+            bottom: 40px;
+            right: 20px;
+            text-align: right;
+            width: 260px;
         }
     </style>
 
@@ -274,38 +214,6 @@
                 window.location.href = previousUrl;
             };
         })();
-    </script>
-
-    <!-- Script para control de tamaño de texto -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const html = document.documentElement;
-            const buttons = document.querySelectorAll('.text-size-btn');
-            const sizes = {
-                'small': '0.9',
-                'normal': '1',
-                'large': '1.2'
-            };
-
-            // Cargar tamaño guardado
-            const savedSize = localStorage.getItem('textSize') || 'normal';
-            setTextSize(savedSize);
-
-            buttons.forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const size = btn.dataset.size;
-                    setTextSize(size);
-                    localStorage.setItem('textSize', size);
-                });
-            });
-
-            function setTextSize(size) {
-                html.style.fontSize = `${sizes[size]}rem`;
-                buttons.forEach(btn => {
-                    btn.classList.toggle('active', btn.dataset.size === size);
-                });
-            }
-        });
     </script>
 
     {% block scripts %}{% endblock %}
