@@ -1,18 +1,3 @@
-"""
-VISTAS PRINCIPALES DEL SISTEMA SISARM SEARCH
-==============================================
-Módulo: partidas/views.py
-
-Funcionalidades principales:
-  - Búsqueda de partidas arancelarias (PartidaArancelaria)
-  - Importación de datos desde Excel
-  - Gestión de licencias temporales de usuarios
-  - Chat asistido con Dialogflow
-  - Exportación de datos (Excel, PDF)
-  - Estadísticas y reportes
-  - Autenticación y control de roles
-"""
-
 from django.shortcuts import render, get_object_or_404, redirect
 from .models import PartidaArancelaria, Busqueda, Manual, LicenciaTemporal, Rol, PartidaReferencia, HistoriaActividad
 from .forms import CargarExcelForm, PartidaForm, RegistroUsuarioForm
@@ -32,26 +17,20 @@ from django.core.mail import send_mail
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 import csv
+from .decorators import rol_requerido
 from .models import ExportLog
 from .models import ClickLog
+
 from django.core.paginator import Paginator
 from openpyxl import Workbook
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import Alignment, Font, Border, Side
 
-# Cliente de chat: preferir el fallback mejorado. Si no está, intentar otros.
-try:
-    from .dialogflow_improved import get_chat_response, stream_chat_response, DEFAULT_RESPONSE
-except Exception:
-    try:
-        from .dialogflow_local import get_chat_response, stream_chat_response, DEFAULT_RESPONSE
-    except Exception:
-        try:
-            from .dialogflow_client import get_chat_response, stream_chat_response, DEFAULT_RESPONSE
-        except Exception:
-            get_chat_response = None
-            stream_chat_response = None
-            DEFAULT_RESPONSE = 'Lo siento, el asistente no está disponible en este momento.'
+# Cliente de chat: las importaciones siguientes causan errores, se comentan
+# El sistema usa _generate_local_reply() que se define más abajo
+get_chat_response = None
+stream_chat_response = None
+DEFAULT_RESPONSE = 'Lo siento, el asistente no está disponible en este momento.'
 
 
 def _split_normalize_ace22(full_ace22: str):
@@ -192,7 +171,9 @@ def buscar_partidas(request):
     gravamen = request.GET.get('gravamen', '').strip()
     tipo_documento = request.GET.get('tipo_documento', '').strip()
     entidad_emite = request.GET.get('entidad_emite', '').strip()
+    disp_legal = request.GET.get('disp_legal', '').strip()
 
+    # Aplicar filtros (sin requerir término)
     if termino:
         partidas = partidas.filter(Q(codigo__icontains=termino) | Q(descripcion__icontains=termino))
 
@@ -201,10 +182,13 @@ def buscar_partidas(request):
     if gravamen:
         partidas = partidas.filter(gravamen__icontains=gravamen)
     if tipo_documento:
-        partidas = partidas.filter(tipo_documento__icontains=tipo_documento)
+        partidas = partidas.filter(tipo_documento__iexact=tipo_documento)
     if entidad_emite:
         partidas = partidas.filter(entidad_emite__icontains=entidad_emite)
+    if disp_legal:
+        partidas = partidas.filter(disp_legal__iexact=disp_legal)
 
+    # Registrar búsqueda solo si hay término de búsqueda
     if request.user.is_authenticated and termino:
         # preparar resumen de resultados: cantidad y hasta 5 códigos como ejemplo
         try:
@@ -334,9 +318,42 @@ def buscar_partidas(request):
         if not label:
             label = orig
         capitulos_disponibles.append((orig, label, numero))
-    gravamenes_disponibles = PartidaArancelaria.objects.values_list('gravamen', flat=True).distinct()
-    tipos_disponibles = PartidaArancelaria.objects.values_list('tipo_documento', flat=True).distinct()
-    entidades_disponibles = PartidaArancelaria.objects.values_list('entidad_emite', flat=True).distinct()
+    
+    # Obtener gravamenes_disponibles y eliminar duplicados
+    gravamenes_raw = PartidaArancelaria.objects.values_list('gravamen', flat=True).distinct()
+    gravamenes_set = set()
+    gravamenes_disponibles = []
+    for g in gravamenes_raw:
+        if g and g not in gravamenes_set:
+            gravamenes_set.add(g)
+            gravamenes_disponibles.append(g)
+    
+    # Obtener tipos_disponibles y eliminar duplicados (SQLite puede devolver duplicados con .distinct())
+    tipos_raw = list(PartidaArancelaria.objects.values_list('tipo_documento', flat=True).distinct())
+    tipos_set = set()
+    tipos_disponibles = []
+    for t in tipos_raw:
+        if t and t not in tipos_set:
+            tipos_set.add(t)
+            tipos_disponibles.append(t)
+    
+    # Obtener entidades_disponibles y eliminar duplicados
+    entidades_raw = list(PartidaArancelaria.objects.values_list('entidad_emite', flat=True).distinct())
+    entidades_set = set()
+    entidades_disponibles = []
+    for e in entidades_raw:
+        if e and e not in entidades_set:
+            entidades_set.add(e)
+            entidades_disponibles.append(e)
+    
+    # Obtener disp_legal_disponibles y eliminar duplicados
+    disp_legal_raw = list(PartidaArancelaria.objects.values_list('disp_legal', flat=True).distinct())
+    disp_legal_set = set()
+    disp_legal_disponibles = []
+    for d in disp_legal_raw:
+        if d and d not in disp_legal_set:
+            disp_legal_set.add(d)
+            disp_legal_disponibles.append(d)
 
     return render(request, 'partidas/buscar.html', {
         'resultados': partidas,
@@ -348,12 +365,14 @@ def buscar_partidas(request):
             'capitulo': capitulo,
             'gravamen': gravamen,
             'tipo_documento': tipo_documento,
-            'entidad_emite': entidad_emite
+            'entidad_emite': entidad_emite,
+            'disp_legal': disp_legal
         },
         'capitulos': capitulos_disponibles,
         'gravamenes': gravamenes_disponibles,
         'tipos_doc': tipos_disponibles,
-        'entidades': entidades_disponibles
+        'entidades': entidades_disponibles,
+        'disp_legales': disp_legal_disponibles
     })
 
 
@@ -823,7 +842,7 @@ def exportar_partidas_excel(request):
     if gravamen:
         qs = qs.filter(gravamen__icontains=gravamen)
     if tipo_documento:
-        qs = qs.filter(tipo_documento__icontains=tipo_documento)
+        qs = qs.filter(tipo_documento__iexact=tipo_documento)
     if entidad_emite:
         qs = qs.filter(entidad_emite__icontains=entidad_emite)
 
@@ -1541,18 +1560,21 @@ def api_chat_help(request):
     except Exception:
         chat_entry = None
 
-    # Obtener respuesta del cliente (fallback local o Dialogflow)
-    # La función get_chat_response ya fue importada al inicio del módulo
+    # Obtener respuesta usando la función local mejorada
     reply = None
+    sugerencias = []
+    action = None
     try:
-        if get_chat_response is not None:
-            reply = get_chat_response(message, session_id=session_id, language_code='es')
+        # Usar la función local mejorada que devuelve (respuesta, sugerencias, action)
+        reply, sugerencias, action = _generate_local_reply(message, request)
     except Exception as e:
         # Si hay error, usar respuesta por defecto
-        pass
-    
+        reply = "No entendí tu pregunta. ¿Puedo ayudarte con algo más?"
+        sugerencias = ["Buscar partida", "Ver manuales", "Contactar soporte"]
+        action = None
+
     if not reply:
-        reply = DEFAULT_RESPONSE
+        reply = "No entendí exactamente. ¿Cuál es tu pregunta?"
 
     # Actualizar historial si existe
     if chat_entry:
@@ -1572,12 +1594,12 @@ def api_chat_help(request):
     except Exception:
         pass
 
-    # Devolver respuesta en JSON
+    # Devolver respuesta en JSON con sugerencias y acciones
     return JsonResponse({
         'ok': True,
         'reply': reply,
-        'action': None,
-        'action_text': None
+        'sugerencias': sugerencias,
+        'action': action
     })
 
 # Vista para estadísticas de aranceles

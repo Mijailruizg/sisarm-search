@@ -1,84 +1,63 @@
-"""
-MODELOS DE BASE DE DATOS — SISARM SEARCH
-=========================================
-Módulo: partidas/models.py
-
-Modelos principales:
-  - Usuario: Usuario personalizado con rol y estado de licencia
-  - Rol: Define permisos y roles de usuario
-  - LicenciaTemporal: Controla acceso temporal por fecha
-  - PartidaArancelaria: Datos de aranceles (código, descripción, gravamen, etc.)
-  - Busqueda: Log de búsquedas realizadas por usuarios
-  - Otros: Logs de clicks, exportaciones, chat, soporte, etc.
-"""
-
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 
 
+
+capitulo = models.CharField(max_length=100, blank=True, null=True)
+
+
 class Rol(models.Model):
-    """Define roles de usuario y sus permisos asociados."""
     nombre = models.CharField(max_length=50)
     descripcion_permisos = models.TextField()
 
     def __str__(self):
         return self.nombre
 
-
 class Usuario(AbstractUser):
-    """Usuario personalizado con extensión de Django User para agregar rol y estado de licencia."""
     rol = models.ForeignKey(Rol, on_delete=models.SET_NULL, null=True)
     estado_licencia = models.BooleanField(default=True)
     fecha_registro = models.DateTimeField(auto_now_add=True)
 
-
 class LicenciaTemporal(models.Model):
-    """Controla el acceso temporal de usuarios (validar fecha inicio/fin)."""
     usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE)
     fecha_inicio = models.DateField()
     fecha_fin = models.DateField()
     estado = models.BooleanField(default=True)
-    # Indica si se envió notificación previa al vencimiento (evita emails repetidos)
+    # indica si ya se envió la notificación previa al vencimiento para evitar emails repetidos
     notified_pre_expiry = models.BooleanField(default=False)
 
-
 class PartidaArancelaria(models.Model):
-    """
-    Modelo principal: Datos de partidas arancelarias.
-    Campos: Código, descripción, gravamen, aranceles, tratados comerciales (ACE22, ACE36, ACE47, ACE66).
-    """
-    capitulo = models.CharField(max_length=10, default="Sin datos")
+    capitulo = models.CharField(max_length=200, default="Sin datos")
     partida = models.CharField(max_length=10, default="Sin datos")
     subpartida = models.CharField(max_length=10, default="Sin datos")
-    codigo = models.CharField(max_length=50, default="Sin datos")  # PK: código de partida
-    descripcion = models.TextField(default="Sin datos")  # Descripción completa de la mercancía
-    gravamen = models.CharField(max_length=50, default="Sin datos")  # % de aranceles
-    ice_iehd = models.CharField(max_length=50, default="Sin datos")  # Impuestos específicos
+    codigo = models.CharField(max_length=50, default="Sin datos")
+    descripcion = models.TextField(default="Sin datos")
+    gravamen = models.CharField(max_length=50, default="Sin datos")
+    ice_iehd = models.CharField(max_length=50, default="Sin datos")
     unidad_medida = models.CharField(max_length=50, default="Sin datos")
     despacho_frontera = models.CharField(max_length=50, default="Sin datos")
     tipo_documento = models.CharField(max_length=50, default="Sin datos")
     entidad_emite = models.CharField(max_length=100, default="Sin datos")
-    disp_legal = models.TextField(default="Sin datos")  # Disposición legal / normativa aplicable
-    can_ace36_ace47_ven = models.CharField(max_length=50, default="Sin datos")  # Tratado con Venezuela
-    ace22_chi_prot = models.CharField(max_length=50, default="Sin datos")  # Tratados con Chile
-    ace66_mexico = models.CharField(max_length=50, default="Sin datos")  # Tratado con México
-    permisos = models.TextField(default="Sin datos")  # Permisos / requisitos especiales
+    disp_legal = models.TextField(default="Sin datos")
+    can_ace36_ace47_ven = models.CharField(max_length=50, default="Sin datos")
+    ace22_chi_prot = models.CharField(max_length=50, default="Sin datos")
+    ace66_mexico = models.CharField(max_length=50, default="Sin datos")
+    permisos = models.TextField(default="Sin datos")
     subpartidas = models.TextField(default="Sin datos")
     referencia_legal = models.TextField(default="Sin datos")
-    updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)  # Última actualización
+    # fecha de última actualización para habilitar filtros por rango de fechas
+    updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
 
     def __str__(self):
         return f"{self.codigo} - {self.descripcion}"
 
-
 class Busqueda(models.Model):
-    """Log de búsquedas: registra qué busca cada usuario para estadísticas y auditoría."""
     usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE)
     termino_buscado = models.CharField(max_length=100)
-    tipo_busqueda = models.CharField(max_length=50)  # 'texto', 'codigo', 'filtro', etc.
+    tipo_busqueda = models.CharField(max_length=50)
     fecha = models.DateTimeField(auto_now_add=True)
-    resultados = models.TextField(blank=True, default='')  # Resumen de resultados encontrados
-
+    # resumen de resultados: cadena legible que puede incluir número de hits y ejemplos de códigos
+    resultados = models.TextField(blank=True, default='')
 
 class HistoriaActividad(models.Model):
     usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE)

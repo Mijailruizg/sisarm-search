@@ -142,7 +142,7 @@
         </div>
         {% endif %}
     </div>
-        <!-- Modal Bootstrap: acción sugerida por el servidor -->
+
         <div class="modal fade" id="actionModal" tabindex="-1" aria-labelledby="actionModalLabel" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
@@ -174,7 +174,7 @@
 
 <div id="serverActionData" data-action='{{ action_json|escapejs }}' style="display:none;"></div>
 <script>
-/* acción enviada desde el servidor cuando la página se renderiza (ej. abrir soporte) */
+
 var serverAction = null;
 
 function handleAction(action){
@@ -212,7 +212,7 @@ function hideActionPanel(){
     modalEl.style.display = 'none';
 }
 
-// Helper CSRF (leer cookie)
+
 function getCookie(name) {
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {
@@ -232,7 +232,7 @@ function escapeHTML(s){
     return String(s).replace(/[&<>\"']/g, function(m){ return {'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":"&#39;"}[m]; });
 }
 
-// Añadir burbujas al chat. si html=true se usa innerHTML (backend controla seguridad); por defecto escapa
+
 function appendBubble(text, who='bot', html=false){
     const chat = document.getElementById('chatWrapper');
     const div = document.createElement('div');
@@ -259,7 +259,7 @@ async function sendMessageToApi(message, {stream=false, publico=false, timeout=3
     const csrftoken = getCookie('csrftoken');
     const body = new URLSearchParams();
     body.append('message', message);
-    // adjuntar session_id (contexto por usuario) si existe o generarlo
+
     try{
         let sessionId = localStorage.getItem('df_session_id');
         if(!sessionId){
@@ -302,7 +302,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function doSend(){
         const text = campo.value.trim();
         if(!text) return;
-        // mostrar mensaje del usuario
+
         appendBubble(text, 'user');
         campo.value = '';
         btn.disabled = true; campo.disabled = true;
@@ -333,7 +333,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.addEventListener('click', async (ev) => { ev.preventDefault(); await doSend(); });
     campo.addEventListener('keydown', async (ev) => { if(ev.key === 'Enter' && !ev.shiftKey){ ev.preventDefault(); await doSend(); } });
 
-    // scroll inicial y mostrar respuesta renderizada si existe
+
     const chat = document.getElementById('chatWrapper'); chat.scrollTop = chat.scrollHeight;
     const respuestaBot = document.getElementById('respuestaBot');
     const typingIndicator = document.getElementById('typingIndicator');
@@ -343,14 +343,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.querySelectorAll('.badge').forEach(b => { b.addEventListener('click', async () => { document.getElementById('campoMensaje').value = b.dataset.text; try{ await doSend(); }catch(e){ console.error('Error auto-enviando sugerencia', e); } }); });
 
-    // Mostrar modal si el servidor envió una acción al renderizar
+
     try{ const serverActionEl = document.getElementById('serverActionData'); if(serverActionEl && serverActionEl.dataset && serverActionEl.dataset.action){ const raw = serverActionEl.dataset.action; if(raw && raw !== 'null'){ try{ serverAction = JSON.parse(raw); }catch(e){ console.warn('No se pudo parsear serverAction', e); } } } }catch(e){}
 
     if(typeof serverAction !== 'undefined' && serverAction){
         try{ if(serverAction.auto_open) handleAction(serverAction); else showActionPanel(serverAction); }catch(e){ showActionPanel(serverAction); }
     }
 
-    // Wiring botones del modal de acción
+
     const openBtn = document.getElementById('actionModalOpenBtn');
     const ignoreBtn = document.getElementById('actionModalIgnoreBtn');
     const modalEl = document.getElementById('actionModal');

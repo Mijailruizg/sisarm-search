@@ -195,7 +195,7 @@ class LicenciaTemporalAdmin(admin.ModelAdmin):
 class PartidaAdmin(admin.ModelAdmin):
     list_display = ('codigo', 'descripcion', 'capitulo', 'partida', 'subpartida', 'gravamen')
     search_fields = ('codigo', 'descripcion', 'capitulo', 'partida', 'subpartida')
-    list_filter = ('capitulo', 'gravamen')
+    list_filter = ('capitulo', 'gravamen', 'tipo_documento')
 
 @admin.register(Busqueda)
 class BusquedaAdmin(admin.ModelAdmin):

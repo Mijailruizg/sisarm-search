@@ -190,12 +190,20 @@
                             {% endfor %}
                         </select>
                     </div>
+                    <div class="col-md-3">
+                        <select name="disp_legal" class="form-select">
+                            <option value="">Disposición Legal</option>
+                            {% for d in disp_legales %}
+                                <option value="{{ d }}" {% if filtros.disp_legal == d %}selected{% endif %}>{{ d }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
                 </div>
             </div>
         </div>
     </form>
 
-    {% if request.GET.termino or filtros.capitulo or filtros.gravamen or filtros.tipo_documento or filtros.entidad_emite %}
+    {% if request.GET.termino or filtros.capitulo or filtros.gravamen or filtros.tipo_documento or filtros.entidad_emite or filtros.disp_legal %}
         <div class="mt-3">
             {% if filtros.capitulo %}
                 <h5> Resultados filtrados por Capítulo: "{{ filtros.capitulo }}"</h5>
@@ -205,6 +213,8 @@
                 <h5> Resultados filtrados por Tipo de Documento: "{{ filtros.tipo_documento }}"</h5>
             {% elif filtros.entidad_emite %}
                 <h5> Resultados filtrados por Entidad: "{{ filtros.entidad_emite }}"</h5>
+            {% elif filtros.disp_legal %}
+                <h5> Resultados filtrados por Disposición Legal: "{{ filtros.disp_legal }}"</h5>
             {% elif termino %}
                 <h5> Resultados para: "{{ termino }}"</h5>
             {% endif %}

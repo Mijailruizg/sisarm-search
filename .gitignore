@@ -49,6 +49,19 @@ set_env.bat
 
 # Credentials and sensitive files
 credentials/
+dialogflow-key.json
+*.key
+*.pem
+
+# Database
+db.sqlite3
+db.sqlite3-journal
+
+# Environment
+env/
+venv/
+.env*
+credentials/
 sent_emails/
 
 # Testing
