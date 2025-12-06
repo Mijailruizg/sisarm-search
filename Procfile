@@ -1,1 +1,1 @@
-web: python manage.py migrate && gunicorn sisarm_search.wsgi
+web: python manage.py migrate && python manage.py collectstatic --noinput && gunicorn sisarm_search.wsgi
