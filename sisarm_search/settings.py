@@ -7,9 +7,9 @@ load_dotenv()
 
 # === RUTAS Y SEGURIDAD ===
 BASE_DIR = Path(__file__).resolve().parent.parent
-SECRET_KEY = 'django-insecure-clave-temporal-para-desarrollo'
-DEBUG = True
-ALLOWED_HOSTS = []
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-clave-temporal-para-desarrollo')
+DEBUG = os.getenv('DEBUG', 'False').lower() in ('1', 'true', 'yes')
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
 # === APLICACIONES INSTALADAS ===
 INSTALLED_APPS = [
@@ -26,6 +26,7 @@ INSTALLED_APPS = [
 # === MIDDLEWARE ===
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Para archivos estáticos en producción
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -58,12 +59,21 @@ TEMPLATES = [
 WSGI_APPLICATION = 'sisarm_search.wsgi.application'
 
 # === BASE DE DATOS ===
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+import dj_database_url
+
+# En producción usa DATABASE_URL (proporcionada por Railway)
+# En desarrollo usa SQLite
+if os.getenv('DATABASE_URL'):
+    DATABASES = {
+        'default': dj_database_url.config(default=os.getenv('DATABASE_URL'), conn_max_age=600)
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 # === USUARIO PERSONALIZADO ===
 AUTH_USER_MODEL = 'partidas.Usuario'
@@ -85,8 +95,10 @@ USE_I18N = True
 USE_TZ = True
 
 # === ARCHIVOS ESTÁTICOS ===
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static']
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Media (archivos subidos por usuarios / referencias)
 MEDIA_URL = '/media/'
@@ -117,14 +129,13 @@ EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'False').lower() in ('1', 'true', 'ye
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
 
 # Configuración de depuración de correo
-if DEBUG:
-    EMAIL_DEBUG = True
-    EMAIL_TIMEOUT = 20  # segundos
-
-    # Por compatibilidad, en desarrollo se puede usar un backend que escriba
-    # los correos a disco. Esto se hará SOLO si no se definió explícitamente
-    # la variable de entorno `EMAIL_BACKEND` o si `USE_FILE_EMAIL` está a true.
-    use_file_email = os.getenv('USE_FILE_EMAIL', 'True').lower() in ('1', 'true', 'yes')
-    if use_file_email and 'EMAIL_BACKEND' not in os.environ:
-        EMAIL_BACKEND = 'django.core.mail.backends.filebased.EmailBackend'
-        EMAIL_FILE_PATH = BASE_DIR / 'sent_emails'
+if not DEBUG:
+    # Seguridad en producción
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_BROWSER_XSS_FILTER = True
+    X_FRAME_OPTIONS = 'DENY'
