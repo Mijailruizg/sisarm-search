@@ -1,7 +1,9 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from .models import PartidaArancelaria, Busqueda, Manual, LicenciaTemporal, Rol, PartidaReferencia, HistoriaActividad
-from .forms import CargarExcelForm, PartidaForm, RegistroUsuarioForm
-from .importar_excel import importar_partidas_desde_excel
+from .models import PartidaArancelaria, Busqueda, Manual, LicenciaTemporal, Rol, PartidaReferencia, HistoriaActividad, Usuario
+from .forms import CargarExcelForm, PartidaForm, RegistroUsuarioForm, UsuarioAdminForm
+from .importar_excel import preview_import, process_import
+import tempfile
+import os
 from .decorators import rol_requerido
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView
@@ -686,21 +688,163 @@ def historial_buscador(request):
 @login_required
 @rol_requerido('Administrador')
 def importar_excel(request):
+    # Flujo: 1) Subir archivo -> preview 2) Confirmar -> procesar
     if request.method == 'POST':
+        # Confirmación final
+        if request.POST.get('confirm') == '1':
+            tmp_path = request.session.get('import_tmp_path')
+            tmp_name = request.session.get('import_tmp_name')
+            if not tmp_path or not os.path.exists(tmp_path):
+                messages.error(request, 'No se encontró el archivo temporal de importación. Vuelve a subir el archivo.')
+                return redirect('importar_excel')
+
+            update_existing = bool(request.POST.get('update_existing'))
+            result = process_import(tmp_path, usuario=request.user, update_existing=update_existing, nombre_archivo=tmp_name)
+
+            # limpiar archivo temporal y sesión
+            try:
+                os.remove(tmp_path)
+            except Exception:
+                pass
+            request.session.pop('import_tmp_path', None)
+            request.session.pop('import_tmp_name', None)
+
+            # Mensajes con el resumen
+            messages.success(request, f"Importación completada: {result.get('imported',0)} importadas, {result.get('omitted',0)} omitidas de {result.get('total',0)} filas.")
+            if result.get('errors'):
+                messages.error(request, 'Algunas filas tuvieron errores. Revisa el registro de importación en el admin.')
+            return redirect('panel_partidas')
+
+        # Primera subida: generar preview
         form = CargarExcelForm(request.POST, request.FILES)
         if form.is_valid():
             archivo = request.FILES['archivo']
-            importar_partidas_desde_excel(archivo)
-            messages.success(request, "Partidas importadas correctamente.")
+            # guardar temporalmente en disco para poder reabrir en confirmación
+            tf = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
+            try:
+                for chunk in archivo.chunks():
+                    tf.write(chunk)
+            finally:
+                tf.close()
+
+            request.session['import_tmp_path'] = tf.name
+            request.session['import_tmp_name'] = getattr(archivo, 'name', 'uploaded.xlsx')
+
+            preview = preview_import(tf.name)
+            return render(request, 'partidas/import_preview.html', {'preview': preview, 'archivo_nombre': request.session['import_tmp_name']})
     else:
         form = CargarExcelForm()
     return render(request, 'partidas/importar_excel.html', {'form': form})
 
-@login_required
 @rol_requerido('Administrador')
 def panel_partidas(request):
     partidas = PartidaArancelaria.objects.all()
     return render(request, 'partidas/panel_partidas.html', {'partidas': partidas})
+
+
+@rol_requerido('Administrador')
+def crear_partida(request):
+    if request.method == 'POST':
+        form = PartidaForm(request.POST)
+        if form.is_valid():
+            partida = form.save()
+            try:
+                HistoriaActividad.objects.create(usuario=request.user, accion=f"admin: crear partida {partida.codigo} (id={partida.pk})")
+            except Exception:
+                pass
+            messages.success(request, 'Partida creada correctamente.')
+            return redirect('panel_partidas')
+    else:
+        form = PartidaForm()
+    return render(request, 'partidas/partida_form.html', {'form': form, 'titulo': 'Crear Partida'})
+
+
+@rol_requerido('Administrador')
+def editar_partida(request, partida_id):
+    partida = get_object_or_404(PartidaArancelaria, pk=partida_id)
+    if request.method == 'POST':
+        form = PartidaForm(request.POST, instance=partida)
+        if form.is_valid():
+            part = form.save()
+            try:
+                HistoriaActividad.objects.create(usuario=request.user, accion=f"admin: editar partida {part.codigo} (id={part.pk})")
+            except Exception:
+                pass
+            messages.success(request, 'Partida actualizada correctamente.')
+            return redirect('panel_partidas')
+    else:
+        form = PartidaForm(instance=partida)
+    return render(request, 'partidas/partida_form.html', {'form': form, 'titulo': 'Editar Partida'})
+
+
+@rol_requerido('Administrador')
+def eliminar_partida(request, partida_id):
+    partida = get_object_or_404(PartidaArancelaria, pk=partida_id)
+    if request.method == 'POST':
+        codigo = partida.codigo
+        partida.delete()
+        try:
+            HistoriaActividad.objects.create(usuario=request.user, accion=f"admin: eliminar partida {codigo} (id={partida_id})")
+        except Exception:
+            pass
+        messages.success(request, 'Partida eliminada correctamente.')
+        return redirect('panel_partidas')
+    return render(request, 'partidas/partida_confirm_delete.html', {'partida': partida})
+
+
+@rol_requerido('Administrador')
+def admin_usuarios(request):
+    """Lista de usuarios para administradores con acciones básicas."""
+    qs = Usuario.objects.all().order_by('username')
+    return render(request, 'partidas/admin_usuarios_list.html', {'usuarios': qs})
+
+
+@rol_requerido('Administrador')
+def crear_usuario(request):
+    if request.method == 'POST':
+        form = UsuarioAdminForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            try:
+                HistoriaActividad.objects.create(usuario=request.user, accion=f"admin: crear usuario {user.username} (id={user.pk})")
+            except Exception:
+                pass
+            messages.success(request, 'Usuario creado correctamente.')
+            return redirect('admin_usuarios')
+    else:
+        form = UsuarioAdminForm()
+    return render(request, 'partidas/usuario_form.html', {'form': form, 'titulo': 'Crear usuario'})
+
+
+@rol_requerido('Administrador')
+def editar_usuario(request, usuario_id):
+    user = get_object_or_404(Usuario, pk=usuario_id)
+    if request.method == 'POST':
+        form = UsuarioAdminForm(request.POST, instance=user)
+        if form.is_valid():
+            form.save()
+            try:
+                HistoriaActividad.objects.create(usuario=request.user, accion=f"admin: editar usuario {user.username} (id={user.pk})")
+            except Exception:
+                pass
+            messages.success(request, 'Usuario actualizado correctamente.')
+            return redirect('admin_usuarios')
+    else:
+        form = UsuarioAdminForm(instance=user)
+    return render(request, 'partidas/usuario_form.html', {'form': form, 'titulo': 'Editar usuario'})
+
+
+@rol_requerido('Administrador')
+def toggle_usuario_activo(request, usuario_id):
+    user = get_object_or_404(Usuario, pk=usuario_id)
+    user.is_active = not user.is_active
+    user.save()
+    try:
+        HistoriaActividad.objects.create(usuario=request.user, accion=f"admin: {'activar' if user.is_active else 'desactivar'} usuario {user.username} (id={user.pk})")
+    except Exception:
+        pass
+    messages.success(request, f"Usuario {'activado' if user.is_active else 'desactivado'}.")
+    return redirect('admin_usuarios')
 
 @login_required
 def ver_manuales(request):
@@ -1149,20 +1293,32 @@ def soporte_submit(request):
     try:
         # enviar al equipo de soporte; ajustar en settings si es necesario
         support_to = getattr(settings, 'SUPPORT_EMAIL', 'soporte@sisarm.com')
-        send_mail(subject or 'Solicitud de soporte desde la aplicación', full_body, email_from, [support_to], fail_silently=False)
-        # registrar actividad
         try:
-            HistoriaActividad.objects.create(usuario=request.user if request.user.is_authenticated else None, accion=f"soporte_submit: {subject[:200]}")
-        except Exception:
-            pass
-        # No marcar automáticamente como 'sent' — dejar como 'pending' para que el admin procese la solicitud.
-        try:
-            if solicitud:
-                # solo guardar actividad; mantener estado pendiente
-                solicitud.save()
-        except Exception:
-            pass
-        messages.success(request, 'Solicitud registrada. El equipo de soporte la procesará. Gracias.')
+            sent_count = send_mail(subject or 'Solicitud de soporte desde la aplicación', full_body, email_from, [support_to], fail_silently=False)
+            # registrar actividad
+            try:
+                HistoriaActividad.objects.create(usuario=request.user if request.user.is_authenticated else None, accion=f"soporte_submit: {subject[:200]}")
+            except Exception:
+                pass
+            # marcar como enviado si el envío fue exitoso
+            try:
+                if solicitud:
+                    solicitud.estado = 'sent'
+                    solicitud.error_message = ''
+                    solicitud.save()
+            except Exception:
+                pass
+            messages.success(request, 'Solicitud registrada y enviada al equipo de soporte. Gracias.')
+        except Exception as e:
+            # si falla el envío por email, marcar la solicitud con error y guardar mensaje
+            try:
+                if solicitud:
+                    solicitud.estado = 'error'
+                    solicitud.error_message = str(e)
+                    solicitud.save()
+            except Exception:
+                pass
+            messages.error(request, f'Error al enviar la solicitud: {str(e)}')
     except Exception as e:
         # si falla el envío por email, marcar la solicitud con error y guardar mensaje
         try:

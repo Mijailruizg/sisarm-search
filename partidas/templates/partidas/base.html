@@ -32,7 +32,7 @@
                 <a class="nav-link text-light" href="{% url 'manuales' %}" style="white-space: nowrap; font-size: 0.9rem;">Manuales</a>
                 <a class="nav-link text-light" href="{% url 'estadisticas_aranceles' %}" style="white-space: nowrap; font-size: 0.9rem;">Estadísticas</a>
                 <a class="nav-link text-light" href="{% url 'importar_excel' %}" style="white-space: nowrap; font-size: 0.9rem;">Importar</a>
-                <a class="nav-link text-light" href="{% url 'panel_partidas' %}" style="white-space: nowrap; font-size: 0.9rem;">Admin</a>
+                <a class="nav-link text-light" href="{% url 'admin:index' %}" style="white-space: nowrap; font-size: 0.9rem;">Admin</a>
                 <a class="nav-link text-light" href="{% url 'inicio' %}" style="white-space: nowrap; font-size: 0.9rem;">Inicio</a>
                 <form method="post" action="{% url 'logout' %}" style="display: inline;">
                     {% csrf_token %}

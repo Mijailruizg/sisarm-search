@@ -1,0 +1,20 @@
+{% extends 'partidas/base.html' %}
+{% block content %}
+<h2>Administrar Usuarios</h2>
+<a class="btn btn-success" href="{% url 'crear_usuario' %}">+ Crear usuario</a>
+<table class="table table-striped mt-3">
+    <tr><th>Username</th><th>Email</th><th>Rol</th><th>Activo</th><th>Acciones</th></tr>
+    {% for u in usuarios %}
+    <tr>
+        <td>{{ u.username }}</td>
+        <td>{{ u.email }}</td>
+        <td>{{ u.rol.nombre if u.rol }}</td>
+        <td>{{ u.is_active }}</td>
+        <td>
+            <a class="btn btn-sm btn-primary" href="{% url 'editar_usuario' u.id %}">Editar</a>
+            <a class="btn btn-sm btn-warning" href="{% url 'toggle_usuario_activo' u.id %}">{% if u.is_active %}Desactivar{% else %}Activar{% endif %}</a>
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+{% endblock %}

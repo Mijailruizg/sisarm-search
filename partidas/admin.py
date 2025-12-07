@@ -1,4 +1,4 @@
-
+﻿
 from django.contrib import admin
 from .models import (
     Usuario, Rol, LicenciaTemporal, PartidaArancelaria,
@@ -25,7 +25,7 @@ class UsuarioAdmin(admin.ModelAdmin):
     list_display = ('username', 'email', 'rol', 'is_active', 'estado_licencia')
     search_fields = ('username', 'email')
     list_filter = ('rol', 'is_active')
-    actions = ['enviar_notificacion_por_correo']
+    actions = ['enviar_notificacion_por_correo', 'activar_usuarios', 'desactivar_usuarios']
 
     def enviar_notificacion_por_correo(self, request, queryset):
         """Acción de admin: mostrar formulario intermedio para asunto/mensaje y enviar email a los seleccionados."""
@@ -102,6 +102,54 @@ class UsuarioAdmin(admin.ModelAdmin):
 
     enviar_notificacion_por_correo.short_description = 'Enviar notificación por correo a los usuarios seleccionados'
     change_form_template = 'admin/partidas/usuario/change_form.html'
+
+    def activar_usuarios(self, request, queryset):
+        updated = queryset.update(is_active=True)
+        # registrar en historia
+        for user in queryset:
+            try:
+                HistoriaActividad.objects.create(usuario=request.user if request.user.is_authenticated else None,
+                                                 accion=f"admin: activar usuario {user.username} (id={user.pk})")
+            except Exception:
+                pass
+        self.message_user(request, f"{updated} usuario(s) activados.", level=messages.SUCCESS)
+
+    activar_usuarios.short_description = 'Activar usuarios seleccionados'
+
+    def desactivar_usuarios(self, request, queryset):
+        updated = queryset.update(is_active=False)
+        for user in queryset:
+            try:
+                HistoriaActividad.objects.create(usuario=request.user if request.user.is_authenticated else None,
+                                                 accion=f"admin: desactivar usuario {user.username} (id={user.pk})")
+            except Exception:
+                pass
+        self.message_user(request, f"{updated} usuario(s) desactivados.", level=messages.WARNING)
+
+    desactivar_usuarios.short_description = 'Desactivar usuarios seleccionados'
+
+    def save_model(self, request, obj, form, change):
+        """Registrar en HistoriaActividad la creación/edición hecha desde admin."""
+        # determinar si es creación o edición
+        is_create = not bool(obj.pk and change)
+        super().save_model(request, obj, form, change)
+        try:
+            if change:
+                HistoriaActividad.objects.create(usuario=request.user if request.user.is_authenticated else None,
+                                                 accion=f"admin: editar usuario {obj.username} (id={obj.pk})")
+            else:
+                HistoriaActividad.objects.create(usuario=request.user if request.user.is_authenticated else None,
+                                                 accion=f"admin: crear usuario {obj.username} (id={obj.pk})")
+        except Exception:
+            pass
+
+    def delete_model(self, request, obj):
+        try:
+            HistoriaActividad.objects.create(usuario=request.user if request.user.is_authenticated else None,
+                                             accion=f"admin: eliminar usuario {obj.username} (id={obj.pk})")
+        except Exception:
+            pass
+        super().delete_model(request, obj)
 
     def get_urls(self):
         from django.urls import path
@@ -196,6 +244,28 @@ class PartidaAdmin(admin.ModelAdmin):
     list_display = ('codigo', 'descripcion', 'capitulo', 'partida', 'subpartida', 'gravamen')
     search_fields = ('codigo', 'descripcion', 'capitulo', 'partida', 'subpartida')
     list_filter = ('capitulo', 'gravamen', 'tipo_documento')
+    
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        try:
+            if change:
+                HistoriaActividad.objects.create(usuario=request.user if request.user.is_authenticated else None,
+                                                 accion=f"admin: editar partida {obj.codigo} (id={obj.pk})")
+            else:
+                HistoriaActividad.objects.create(usuario=request.user if request.user.is_authenticated else None,
+                                                 accion=f"admin: crear partida {obj.codigo} (id={obj.pk})")
+        except Exception:
+            pass
+
+    def delete_model(self, request, obj):
+        codigo = obj.codigo
+        pk = obj.pk
+        super().delete_model(request, obj)
+        try:
+            HistoriaActividad.objects.create(usuario=request.user if request.user.is_authenticated else None,
+                                             accion=f"admin: eliminar partida {codigo} (id={pk})")
+        except Exception:
+            pass
 
 @admin.register(Busqueda)
 class BusquedaAdmin(admin.ModelAdmin):

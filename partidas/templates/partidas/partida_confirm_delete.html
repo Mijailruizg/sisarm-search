@@ -1,0 +1,10 @@
+{% extends 'partidas/base.html' %}
+{% block content %}
+<h2>Eliminar Partida</h2>
+<p>¿Confirma eliminar la partida <strong>{{ partida.codigo }}</strong> - {{ partida.descripcion|truncatechars:80 }} ?</p>
+<form method="post">
+    {% csrf_token %}
+    <button class="btn btn-danger" type="submit">Eliminar</button>
+    <a class="btn btn-secondary" href="{% url 'panel_partidas' %}">Cancelar</a>
+</form>
+{% endblock %}

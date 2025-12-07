@@ -1,0 +1,60 @@
+{% extends 'partidas/base.html' %}
+{% block content %}
+<div class="card">
+  <div class="card-body">
+    <h5 class="card-title">Vista previa de importación: {{ archivo_nombre }}</h5>
+    <p>Filas detectadas: <strong>{{ preview.total }}</strong>. Filas con errores: <strong>{{ preview.errors_count }}</strong>.</p>
+
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="confirm" value="1" />
+      <div class="mb-3 form-check">
+        <input type="checkbox" class="form-check-input" id="update_existing" name="update_existing" value="1">
+        <label class="form-check-label" for="update_existing">Actualizar registros existentes con el mismo código</label>
+      </div>
+      <button type="submit" class="btn btn-primary">Confirmar importación</button>
+      <a href="{% url 'importar_excel' %}" class="btn btn-secondary">Cancelar</a>
+    </form>
+
+    <hr />
+    <div style="max-height:400px; overflow:auto;">
+      <table class="table table-sm table-striped">
+        <thead>
+          <tr>
+            <th>Línea</th>
+            <th>Código</th>
+            <th>Descripción</th>
+            <th>Capítulo</th>
+            <th>Partida</th>
+            <th>ACE22</th>
+            <th>Errores</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in preview.rows %}
+          <tr>
+            <td>{{ row.line }}</td>
+            <td>{{ row.codigo }}</td>
+            <td>{{ row.descripcion|truncatechars:80 }}</td>
+            <td>{{ row.capitulo }}</td>
+            <td>{{ row.partida }}</td>
+            <td>{{ row.ace22 }}</td>
+            <td>
+              {% if row.errors %}
+                <ul class="mb-0">
+                  {% for e in row.errors %}
+                  <li class="text-danger">{{ e }}</li>
+                  {% endfor %}
+                </ul>
+              {% else %}
+                <span class="text-success">OK</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

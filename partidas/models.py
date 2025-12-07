@@ -230,3 +230,18 @@ class NotificationLog(models.Model):
         to_addr = self.destinatario_email or (self.destinatario.username if self.destinatario else 'N/A')
         status = 'OK' if self.success else 'FAIL'
         return f"{self.fecha_hora} | {to_addr} | {status}"
+
+
+class ImportLog(models.Model):
+    """Registro de importaciones realizadas (por ejemplo desde Excel)."""
+    usuario = models.ForeignKey(Usuario, on_delete=models.SET_NULL, null=True, blank=True)
+    nombre_archivo = models.CharField(max_length=255)
+    total_filas = models.IntegerField(default=0)
+    importadas = models.IntegerField(default=0)
+    omitidas = models.IntegerField(default=0)
+    errores = models.TextField(blank=True, null=True)
+    fecha_hora = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        user = self.usuario.username if self.usuario else 'Anónimo'
+        return f"{self.fecha_hora} | {user} | {self.nombre_archivo} ({self.importadas}/{self.total_filas})"
