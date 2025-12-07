@@ -1,4 +1,15 @@
 {% extends 'partidas/base.html' %}
+{% load static %}
+
+{% block extra_styles %}
+<style>
+  body.detalle-bg { background-image: url('{% static "img/fondo.jpg.png" %}') !important; background-size: cover !important; background-repeat: no-repeat !important; background-attachment: fixed !important; background-position: center center !important; }
+  .card { background: rgba(255,255,255,0.95); }
+</style>
+{% endblock %}
+
+{% block body_class %}detalle-bg{% endblock %}
+
 {% block content %}
 <div class="card">
   <div class="card-body">

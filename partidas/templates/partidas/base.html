@@ -15,9 +15,12 @@
     {% if not ocultar_navbar %}
     <nav class="navbar navbar-dark bg-dark">
         <div class="container-fluid d-flex align-items-center gap-3">
-            <!-- Botón Volver Atrás -->
-            <button class="back-btn" onclick="goBackCustom()" title="Volver atrás">
-                <span style="font-size: 1.3rem;">←</span>
+            <!-- Botón Volver Atrás (estilo tipo Edge, accesible) -->
+            <button class="back-btn" onclick="goBackCustom()" title="Volver atrás" aria-label="Volver" type="button">
+                <!-- SVG chevron izquierdo, escala limpia en cualquier resolución -->
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" width="18" height="18">
+                    <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" fill="currentColor" />
+                </svg>
             </button>
 
             <!-- Logo/marca -->
@@ -97,34 +100,35 @@
             color: #ffc107 !important;
         }
 
-        /* Estilos del botón volver */
+        /* Estilos del botón volver - apariencia tipo Edge */
         .back-btn {
-            background: linear-gradient(135deg, #ffc107 0%, #ffb300 100%);
-            border: none;
-            border-radius: 50%;
-            width: 45px;
-            height: 45px;
-            display: flex;
+            display: inline-flex;
             align-items: center;
             justify-content: center;
-            color: #333;
-            font-weight: bold;
+            width: 44px;
+            height: 36px;
+            padding: 6px;
+            border-radius: 8px;
+            background: linear-gradient(180deg, #ffffff 0%, #f3f4f6 100%);
+            border: 1px solid rgba(16,24,40,0.06);
+            color: #0b2a4a;
             cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 8px rgba(255, 193, 7, 0.3);
+            transition: transform 0.14s ease, box-shadow 0.14s ease, background-color 0.14s ease;
+            box-shadow: 0 1px 2px rgba(16,24,40,0.05);
             flex-shrink: 0;
         }
 
+        .back-btn svg { width: 18px; height: 18px; display:block; }
+
         .back-btn:hover {
-            background: linear-gradient(135deg, #ffb300 0%, #ff9800 100%);
-            transform: scale(1.1);
-            box-shadow: 0 6px 12px rgba(255, 152, 0, 0.4);
+            transform: translateY(-2px);
+            background: linear-gradient(180deg, #f8fbff 0%, #eef6ff 100%);
+            box-shadow: 0 6px 18px rgba(16,24,40,0.12);
         }
 
-        .back-btn:active {
-            transform: scale(0.95);
-            box-shadow: 0 2px 4px rgba(255, 152, 0, 0.4);
-        }
+        .back-btn:active { transform: translateY(0); box-shadow: 0 2px 8px rgba(16,24,40,0.08); }
+
+        .back-btn:focus { outline: none; box-shadow: 0 0 0 4px rgba(0,112,243,0.12); }
 
         /* (navbar no fija - comportamiento por defecto) */
 
@@ -210,68 +214,41 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     
-    <!-- Sistema de historial para volver atrás múltiples veces -->
+    <!-- Control de navegación: botón "volver" usa el historial nativo del navegador -->
     <script>
         (function() {
-            const HISTORY_KEY = 'sisarmPageHistory';
-            const MAX_HISTORY = 100;
-            
-            // Inicializar o recuperar el historial
-            function getHistory() {
-                try {
-                    return JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
-                } catch(e) {
-                    return [];
-                }
-            }
-            
-            function saveHistory(history) {
-                try {
-                    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
-                } catch(e) {
-                    console.error('Error al guardar historial:', e);
-                }
-            }
-            
-            // Registrar la página actual al cargar
-            window.addEventListener('load', function() {
-                const currentUrl = window.location.href;
-                let history = getHistory();
-                
-                // Evitar duplicados consecutivos
-                if (history.length === 0 || history[history.length - 1] !== currentUrl) {
-                    history.push(currentUrl);
-                    
-                    // Limitar el tamaño del historial
-                    if (history.length > MAX_HISTORY) {
-                        history.shift();
-                    }
-                    
-                    saveHistory(history);
-                }
-            });
-            
-            // Función para volver atrás
+            // goBackCustom: retrocede un paso en el historial del navegador.
+            // Si no hay pasos atrás, pregunta si abrir Microsoft Edge; si no, redirige a /inicio/.
             window.goBackCustom = function() {
-                let history = getHistory();
-                
-                if (history.length <= 1) {
-                    // Si no hay más páginas en el historial, ir a inicio
-                    window.location.href = '/inicio/';
-                    return;
+                try {
+                    if (window.history && typeof window.history.back === 'function' && window.history.length > 1) {
+                        // Ir solo un paso atrás (comportamiento nativo). Si el usuario pulsa varias veces,
+                        // seguirá retrocediendo según el historial del navegador.
+                        window.history.back();
+                        return;
+                    }
+                } catch (e) {
+                    console.error('Error usando history.back():', e);
                 }
-                
-                // Remover la página actual
-                history.pop();
-                
-                // Obtener la página anterior
-                const previousUrl = history[history.length - 1];
-                
-                // Guardar el historial actualizado
-                saveHistory(history);
-                
-                // Navegar a la página anterior
-                window.location.href = previousUrl;
+
+                // No hay historial hacia atrás: ofrecer abrir Microsoft Edge o volver al inicio
+                try {
+                    const abrirEdge = confirm('No hay más historial. ¿Deseas abrir Microsoft Edge? (Aceptar) o volver al inicio (Cancelar)');
+                    if (abrirEdge) {
+                        // Intentar abrir el esquema ms-edge (puede depender del navegador y permisos)
+                        try {
+                            // Intentamos abrir el esquema; si no funciona, se fallará silenciosamente
+                            window.location.href = 'microsoft-edge:';
+                        } catch (e) {
+                            try { window.open('microsoft-edge:'); } catch (e2) { window.location.href = '/inicio/'; }
+                        }
+                    } else {
+                        window.location.href = '/inicio/';
+                    }
+                } catch (e) {
+                    console.error('Error en goBackCustom fallback:', e);
+                    window.location.href = '/inicio/';
+                }
             };
         })();
     </script>

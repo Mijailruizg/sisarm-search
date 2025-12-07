@@ -1,10 +1,41 @@
 {% extends 'partidas/base.html' %}
+{% load static %}
+
+{% block extra_styles %}
+<style>
+    body.detalle-bg {
+        background-image: url('{% static "img/fondo.jpg.png" %}');
+        background-size: cover;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+        background-position: center;
+    }
+    .form-panel {
+        max-width: 820px;
+        margin: 3rem auto;
+        background: rgba(255,255,255,0.95);
+        padding: 1.8rem;
+        border-radius: 10px;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+    }
+    @media (max-width: 520px) {
+        .form-panel { margin: 1rem; padding: 1rem; }
+    }
+</style>
+{% endblock %}
+
+{% block body_class %}detalle-bg{% endblock %}
+
 {% block content %}
-<h2>{{ titulo }}</h2>
-<form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button class="btn btn-primary" type="submit">Guardar</button>
-    <a class="btn btn-secondary" href="{% url 'panel_partidas' %}">Cancelar</a>
-</form>
+<div class="form-panel">
+    <h2>{{ titulo }}</h2>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <div class="d-flex gap-2">
+            <button class="btn btn-primary" type="submit">Guardar</button>
+            <a class="btn btn-secondary" href="{% url 'panel_partidas' %}">Cancelar</a>
+        </div>
+    </form>
+</div>
 {% endblock %}
