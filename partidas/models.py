@@ -23,7 +23,7 @@ class LicenciaTemporal(models.Model):
     fecha_inicio = models.DateField()
     fecha_fin = models.DateField()
     estado = models.BooleanField(default=True)
-    # indica si ya se envió la notificación previa al vencimiento para evitar emails repetidos
+
     notified_pre_expiry = models.BooleanField(default=False)
 
 class PartidaArancelaria(models.Model):
@@ -45,7 +45,7 @@ class PartidaArancelaria(models.Model):
     permisos = models.TextField(default="Sin datos")
     subpartidas = models.TextField(default="Sin datos")
     referencia_legal = models.TextField(default="Sin datos")
-    # fecha de última actualización para habilitar filtros por rango de fechas
+
     updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
 
     def __str__(self):
@@ -56,7 +56,7 @@ class Busqueda(models.Model):
     termino_buscado = models.CharField(max_length=100)
     tipo_busqueda = models.CharField(max_length=50)
     fecha = models.DateTimeField(auto_now_add=True)
-    # resumen de resultados: cadena legible que puede incluir número de hits y ejemplos de códigos
+
     resultados = models.TextField(blank=True, default='')
 
 class HistoriaActividad(models.Model):
@@ -71,7 +71,7 @@ class SolicitudSoporte(models.Model):
         ('sent', 'Enviado'),
         ('error', 'Error'),
     )
-    # nombre del remitente (puede ser proporcionado por anónimos o rellenado desde el usuario autenticado)
+
     nombre = models.CharField(max_length=150, blank=True, null=True)
     usuario = models.ForeignKey(Usuario, on_delete=models.SET_NULL, null=True, blank=True)
     correo = models.CharField(max_length=254)
@@ -88,9 +88,9 @@ class Manual(models.Model):
     tipo = models.CharField(max_length=50)
     url_pdf = models.URLField()
     descripcion = models.TextField()
-    # versión del documento (p. ej. 'v1.2') para control de cambios
+
     version = models.CharField(max_length=30, blank=True, null=True)
-    # fecha de última actualización del documento (se actualiza al guardar)
+
     updated_at = models.DateTimeField(auto_now=True)
 
 class InterfazSistema(models.Model):

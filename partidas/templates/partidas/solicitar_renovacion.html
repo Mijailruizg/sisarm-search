@@ -10,7 +10,7 @@
     background-attachment: fixed; 
     background-position: center; 
   }
-  /* fondo ligeramente oscuro para legibilidad */
+
   .solicitar-card { background: rgba(255,255,255,0.92); padding: 24px; border-radius: 8px; }
 </style>
 {% endblock %}
@@ -66,7 +66,7 @@
 </div>
 
 <script>
-  // Mostrar/ocultar campo personalizado de asunto
+
   const subjectSelect = document.getElementById('subject');
   const customSubjectContainer = document.getElementById('custom-subject-container');
   const customSubjectInput = document.getElementById('custom_subject');
@@ -81,14 +81,14 @@
     }
   });
 
-  // Validar que se escriba algo en asunto personalizado antes de enviar
+
   document.querySelector('form').addEventListener('submit', function(e) {
     if (subjectSelect.value === 'Otra' && !customSubjectInput.value.trim()) {
       e.preventDefault();
       alert('Por favor escribe el asunto cuando eliges "Otra".');
       customSubjectInput.focus();
     } else if (subjectSelect.value === 'Otra' && customSubjectInput.value.trim()) {
-      // Crear un hidden input con subject_override para el backend
+
       const hiddenInput = document.createElement('input');
       hiddenInput.type = 'hidden';
       hiddenInput.name = 'subject_override';

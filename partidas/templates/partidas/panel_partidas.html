@@ -12,6 +12,27 @@
 
 {% block content %}
 <h2>Administrar Partidas</h2>
+<form method="get" class="mb-3">
+    <div class="row g-2">
+        <div class="col-md-5">
+            <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Buscar por código o descripción...">
+        </div>
+        <div class="col-md-3">
+            <select name="capitulo" class="form-select">
+                <option value="">Todos los capítulos</option>
+                {% for c in capitulo_choices %}
+                    {% if c %}
+                    <option value="{{ c }}" {% if capitulo == c %}selected{% endif %}>{{ c }}</option>
+                    {% endif %}
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-4">
+            <button class="btn btn-primary">Filtrar</button>
+            <a class="btn btn-secondary" href="{% url 'panel_partidas' %}">Limpiar</a>
+        </div>
+    </div>
+</form>
 <table class="table table-striped">
     <tr><th>Código</th><th>Descripción</th><th>Acciones</th></tr>
     {% for partida in partidas %}

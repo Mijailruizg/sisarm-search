@@ -106,7 +106,7 @@
 <script id="promedios-data" type="application/json">{{ promedios_json|default:'[]'|safe }}</script>
 <script>
 document.addEventListener('DOMContentLoaded', function(){
-    // Datos de ejemplo para estadísticas de búsquedas
+
     const busquedasImportacion = [
         {nombre: "Llamas (Lama lama)", cantidad: 25},
         {nombre: "Guanacos (Lama guanicoe)", cantidad: 20},
@@ -122,7 +122,7 @@ document.addEventListener('DOMContentLoaded', function(){
         {nombre: "Jurel", cantidad: 11}
     ];
 
-    // Datos de ejemplo para estadísticas reales
+
     const arancelesImportados = [
         {nombre: "Carne de cerdo", cantidad: 100},
         {nombre: "Carne de ovino", cantidad: 90},
@@ -150,7 +150,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
     function crearGraficoBar(canvasId, datos, color) {
         const el = document.getElementById(canvasId);
-        if(!el) return; // canvas ausente
+        if(!el) return;
         const ctx = el.getContext('2d');
         return new Chart(ctx, {
             type: 'bar',
@@ -176,7 +176,7 @@ document.addEventListener('DOMContentLoaded', function(){
     crearGraficoBar('graficoImportados', arancelesImportados, '#27ae60');
     crearGraficoBar('graficoExportados', arancelesExportados, '#9b59b6');
 
-    // Promedios: usar datos del servidor si están presentes
+
     const promediosEl = document.getElementById('promedios-data');
     const promediosData = promediosEl ? JSON.parse(promediosEl.textContent) : [];
     if(promediosData.length > 0 && document.getElementById('graficoPromedios')){
@@ -188,7 +188,7 @@ document.addEventListener('DOMContentLoaded', function(){
             options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
         });
     }
-    // Auto-submit de filtros en la sección de promedios (actualiza resultados automáticamente)
+
     try{
         const promediosForm = document.querySelector('.container .grafico-container form');
         if(promediosForm){

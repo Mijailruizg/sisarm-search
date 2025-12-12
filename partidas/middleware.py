@@ -6,9 +6,7 @@ class VerificarLicenciaMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        # Evitar bucle de redirecciones: permitir acceder a las rutas públicas
-        # relacionadas con la renovación/soporte y la propia página de licencia
-        # expirada sin forzar redirección.
+
         path = (request.path or '').lower()
         whitelist_prefixes = (
             '/licencia-expirada',
@@ -24,7 +22,7 @@ class VerificarLicenciaMiddleware:
                 return self.get_response(request)
 
         if request.user.is_authenticated:
-            # superusers siempre pasan
+
             if request.user.is_superuser:
                 return self.get_response(request)
 

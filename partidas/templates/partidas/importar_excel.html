@@ -3,7 +3,7 @@
 
 {% block extra_styles %}
 <style>
-    /* Forzar background solo en esta página */
+
     body.detalle-bg {
         background-image: url('{% static "img/fondo.jpg.png" %}') !important;
         background-size: cover !important;
@@ -12,7 +12,7 @@
         background-position: center center !important;
     }
     .fondo-blanco-transparente { background: rgba(255,255,255,0.92); border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); padding: 2rem; }
-    /* Ajuste para que el main no oculte mucho el fondo en pantallas pequeñas */
+
     @media (max-width: 768px) {
         .fondo-blanco-transparente { margin: 1rem; padding: 1rem; }
     }

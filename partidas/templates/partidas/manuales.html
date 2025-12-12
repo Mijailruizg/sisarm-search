@@ -118,20 +118,20 @@
         <p class="text-muted small">¿Quieres una versión PDF de este manual? Haz clic en <strong>Descargar PDF</strong> para obtener una copia imprimible con la misma estructura y formato amigable para impresión.</p>
 </div>
 <style>
-    /* Ajustes responsive: centrar y mejorar legibilidad en móviles */
+
     @media (max-width: 600px) {
         .manual-contenedor { padding: 1.25rem; margin: 2rem 1rem; }
         .manual-contenedor h4 { font-size: 1.05rem; }
     }
 
-    /* Secciones del manual y resaltado activo */
+
     .manual-section { padding: 1rem 0.5rem; border-radius: 8px; margin-bottom: 1rem; }
-        /* color de resaltado ligeramente más intenso (azul claro) */
+
         .manual-section.highlight { background: #cbeeff; box-shadow: 0 0 0 4px rgba(139,200,255,0.65) inset; transition: background 0.25s ease; }
 </style>
 
 <script>
-// Resalta y hace scroll suave a la sección del manual cuando se hace clic en el índice
+
 document.addEventListener('DOMContentLoaded', function(){
     function clearHighlights(){
         document.querySelectorAll('.manual-section.highlight').forEach(function(el){ el.classList.remove('highlight'); });
@@ -141,25 +141,25 @@ document.addEventListener('DOMContentLoaded', function(){
         var target = document.getElementById(id);
         if(!target) return;
         clearHighlights();
-        // añadir clase highlight a la sección
+
         target.classList.add('highlight');
-        // desplazamiento suave con pequeño offset (si hay header fijo, ajustar aquí)
+
         target.scrollIntoView({behavior:'smooth', block:'start'});
-        // actualizar hash sin jump adicional
+
         try{ history.replaceState(null, null, '#'+id); }catch(e){}
-        // eliminar highlight automáticamente después de 6 segundos
+
         window.setTimeout(function(){ try{ target.classList.remove('highlight'); }catch(e){} }, 6000);
     }
 
-    // enlazar los links del índice
+
     document.querySelectorAll('.manual-contenedor nav a[href^="#"]').forEach(function(a){
         a.addEventListener('click', function(ev){ ev.preventDefault(); var href = (a.getAttribute('href')||'').replace('#',''); highlightAndScroll(href); });
     });
 
-    // Si la página carga con hash, resaltar esa sección
+
     if(location.hash){
         var h = location.hash.replace('#','');
-        // esperar un tick para permitir que el render termine
+
         setTimeout(function(){ highlightAndScroll(h); }, 120);
     }
 });

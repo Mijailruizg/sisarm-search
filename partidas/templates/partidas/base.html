@@ -15,28 +15,36 @@
     {% if not ocultar_navbar %}
     <nav class="navbar navbar-dark bg-dark">
         <div class="container-fluid d-flex align-items-center gap-3">
-            <!-- Botón Volver Atrás (estilo tipo Edge, accesible) -->
+
             <button class="back-btn" onclick="goBackCustom()" title="Volver atrás" aria-label="Volver" type="button">
-                <!-- SVG chevron izquierdo, escala limpia en cualquier resolución -->
+
                 <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" width="18" height="18">
                     <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" fill="currentColor" />
                 </svg>
             </button>
 
-            <!-- Logo/marca -->
+
             <a class="navbar-brand flex-shrink-0 me-auto" href="#" style="white-space: nowrap;">SISARM Search</a>
             
-            <!-- Menú de navegación -->
-            {% if user.is_authenticated and not ocultar_botones and 'accounts/login' not in request.path %}
-            <div class="d-flex align-items-center gap-1" style="overflow-x: auto; flex-wrap: wrap; justify-content: flex-end;">
-                <a class="nav-link text-light" href="{% url 'buscar_partidas' %}" style="white-space: nowrap; font-size: 0.9rem;">Buscar Partidas</a>
-                <a class="nav-link text-light" href="{% url 'historial_buscador' %}" style="white-space: nowrap; font-size: 0.9rem;">Historial</a>
-                <a class="nav-link text-light" href="{% url 'chat_asistente' %}" style="white-space: nowrap; font-size: 0.9rem;">Chat de Ayuda</a>
-                <a class="nav-link text-light" href="{% url 'manuales' %}" style="white-space: nowrap; font-size: 0.9rem;">Manuales</a>
-                <a class="nav-link text-light" href="{% url 'estadisticas_aranceles' %}" style="white-space: nowrap; font-size: 0.9rem;">Estadísticas</a>
-                <a class="nav-link text-light" href="{% url 'importar_excel' %}" style="white-space: nowrap; font-size: 0.9rem;">Importar</a>
-                <a class="nav-link text-light" href="{% url 'admin:index' %}" style="white-space: nowrap; font-size: 0.9rem;">Admin</a>
-                <a class="nav-link text-light" href="{% url 'inicio' %}" style="white-space: nowrap; font-size: 0.9rem;">Inicio</a>
+            <!-- Botón Hamburguesa (solo móvil) -->
+            <button class="navbar-hamburguesa" id="navbarToggle" aria-label="Menú de navegación" type="button">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+   
+            {% if user.is_authenticated and 'accounts/login' not in request.path %}
+            <div class="navbar-menu" id="navbarMenu">
+                {% if not ocultar_botones %}
+                <a class="nav-link text-light" href="{% url 'buscar_partidas' %}">Buscar Partidas</a>
+                <a class="nav-link text-light" href="{% url 'historial_buscador' %}">Historial</a>
+                <a class="nav-link text-light" href="{% url 'chat_asistente' %}">Chat de Ayuda</a>
+                <a class="nav-link text-light" href="{% url 'manuales' %}">Manuales</a>
+                <a class="nav-link text-light" href="{% url 'estadisticas_aranceles' %}">Estadísticas</a>
+                <a class="nav-link text-light" href="{% url 'importar_excel' %}">Importar</a>
+                <a class="nav-link text-light" href="{% url 'admin:index' %}">Admin</a>
+                <a class="nav-link text-light" href="{% url 'inicio' %}">Inicio</a>
+                {% endif %}
                 <form method="post" action="{% url 'logout' %}" style="display: inline;">
                     {% csrf_token %}
                     <button type="submit" class="nav-link btn btn-link text-warning" style="border: none; padding: 0.5rem 0.25rem; text-decoration: none; white-space: nowrap; font-size: 0.9rem;">Cerrar sesión</button>
@@ -71,7 +79,7 @@
 
     <div class="marca-agua">@2025 SIS Code Creator - Para SISARM Bolivia</div>
 
-    <!-- Control de tamaño de texto -->
+
     <div class="text-size-controls">
         <button class="text-size-btn" data-size="small" title="Texto pequeño">A-</button>
         <button class="text-size-btn" data-size="normal" title="Texto normal">A</button>
@@ -79,7 +87,7 @@
     </div>
 
     <style>
-        /* Navbar mejorado */
+
         .navbar {
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
@@ -96,11 +104,93 @@
             transition: color 0.3s ease;
         }
 
+        .navbar-hamburguesa {
+            display: none;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0.5rem;
+            z-index: 1001;
+            flex-shrink: 0;
+        }
+
+        .navbar-hamburguesa span {
+            display: block;
+            width: 24px;
+            height: 3px;
+            background-color: #ffffff;
+            margin: 5px 0;
+            transition: all 0.3s ease;
+            border-radius: 2px;
+        }
+
+        .navbar-hamburguesa.active span:nth-child(1) {
+            transform: rotate(45deg) translate(8px, 8px);
+        }
+
+        .navbar-hamburguesa.active span:nth-child(2) {
+            opacity: 0;
+        }
+
+        .navbar-hamburguesa.active span:nth-child(3) {
+            transform: rotate(-45deg) translate(7px, -7px);
+        }
+
+        .navbar-menu {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        @media (max-width: 768px) {
+            .navbar-hamburguesa {
+                display: block;
+            }
+
+            .navbar-menu {
+                display: none;
+                position: absolute;
+                top: 60px;
+                left: 0;
+                right: 0;
+                background-color: #212529;
+                flex-direction: column;
+                gap: 0;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                z-index: 1000;
+                border-radius: 0;
+            }
+
+            .navbar-menu.show {
+                display: flex;
+            }
+
+            .navbar-menu .nav-link {
+                width: 100%;
+                padding: 0.75rem 1rem !important;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+                margin: 0;
+            }
+
+            .navbar-menu form {
+                width: 100%;
+            }
+
+            .navbar-menu button[type="submit"] {
+                width: 100%;
+                text-align: left;
+                padding: 0.75rem 1rem !important;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            }
+        }
+
         .nav-link:hover {
             color: #ffc107 !important;
         }
 
-        /* Estilos del botón volver - apariencia tipo Edge */
+
         .back-btn {
             display: inline-flex;
             align-items: center;
@@ -130,7 +220,7 @@
 
         .back-btn:focus { outline: none; box-shadow: 0 0 0 4px rgba(0,112,243,0.12); }
 
-        /* (navbar no fija - comportamiento por defecto) */
+
 
         .whatsapp-burbuja {
             position: fixed;
@@ -147,10 +237,17 @@
             z-index: 9999;
             transition: transform 0.3s ease;
             border: 2px solid #ffffff;
+            cursor: grab;
+            user-select: none;
         }
 
         .whatsapp-burbuja:hover {
             transform: scale(1.1);
+        }
+
+        .whatsapp-burbuja.dragging {
+            cursor: grabbing;
+            opacity: 0.9;
         }
 
         .headset-overlay {
@@ -164,7 +261,7 @@
             z-index: 10000;
         }
 
-        /* Estilo compartido para marca de agua y texto de licencia */
+
         .marca-agua, .texto-licencia {
             position: fixed;
             opacity: 0.85;
@@ -179,7 +276,7 @@
         .marca-agua { bottom: 5px; right: 10px; }
         .texto-licencia { bottom: 40px; right: 20px; text-align: right; width: 260px; }
 
-        /* Estilos para controles de tamaño de texto */
+
         .text-size-controls {
             position: fixed;
             left: 10px;
@@ -210,20 +307,74 @@
         .text-size-btn.active {
             background: rgba(255, 255, 255, 0.2);
         }
+
+
+        @media (max-width: 575.98px) {
+            .navbar {
+                padding: 0.5rem 0;
+            }
+
+            .navbar-brand {
+                font-size: 0.95rem;
+            }
+
+            .nav-link {
+                padding: 0.35rem 0.5rem !important;
+                font-size: 0.8rem;
+            }
+
+            .back-btn {
+                width: 36px;
+                height: 32px;
+                padding: 4px;
+            }
+
+            .back-btn svg {
+                width: 16px;
+                height: 16px;
+            }
+
+            main.container {
+                padding: 0.5rem;
+            }
+
+            .whatsapp-burbuja {
+                width: 50px;
+                height: 50px;
+                top: 80px;
+                left: 10px;
+            }
+
+            .text-size-controls {
+                bottom: 5px;
+                left: 5px;
+                gap: 2px;
+                padding: 4px;
+            }
+
+            .text-size-btn {
+                padding: 1px 6px;
+                font-size: 0.8rem;
+            }
+
+            .marca-agua {
+                font-size: 0.7rem;
+                right: 5px;
+                bottom: 2px;
+            }
+        }
     </style>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     
-    <!-- Control de navegación: botón "volver" usa el historial nativo del navegador -->
+
     <script>
         (function() {
-            // goBackCustom: retrocede un paso en el historial del navegador.
-            // Si no hay pasos atrás, pregunta si abrir Microsoft Edge; si no, redirige a /inicio/.
+
             window.goBackCustom = function() {
                 try {
                     if (window.history && typeof window.history.back === 'function' && window.history.length > 1) {
-                        // Ir solo un paso atrás (comportamiento nativo). Si el usuario pulsa varias veces,
-                        // seguirá retrocediendo según el historial del navegador.
+
                         window.history.back();
                         return;
                     }
@@ -231,13 +382,13 @@
                     console.error('Error usando history.back():', e);
                 }
 
-                // No hay historial hacia atrás: ofrecer abrir Microsoft Edge o volver al inicio
+
                 try {
                     const abrirEdge = confirm('No hay más historial. ¿Deseas abrir Microsoft Edge? (Aceptar) o volver al inicio (Cancelar)');
                     if (abrirEdge) {
-                        // Intentar abrir el esquema ms-edge (puede depender del navegador y permisos)
+
                         try {
-                            // Intentamos abrir el esquema; si no funciona, se fallará silenciosamente
+
                             window.location.href = 'microsoft-edge:';
                         } catch (e) {
                             try { window.open('microsoft-edge:'); } catch (e2) { window.location.href = '/inicio/'; }
@@ -253,7 +404,7 @@
         })();
     </script>
 
-    <!-- Script para control de tamaño de texto -->
+
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const html = document.documentElement;
@@ -264,7 +415,7 @@
                 'large': '1.2'
             };
 
-            // Cargar tamaño guardado
+
             const savedSize = localStorage.getItem('textSize') || 'normal';
             setTextSize(savedSize);
 
@@ -280,6 +431,110 @@
                 html.style.fontSize = `${sizes[size]}rem`;
                 buttons.forEach(btn => {
                     btn.classList.toggle('active', btn.dataset.size === size);
+                });
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const burbuja = document.querySelector('.whatsapp-burbuja');
+            if (!burbuja) return;
+
+            let isDragging = false;
+            let isLongPress = false;
+            let startX = 0;
+            let startY = 0;
+            let longPressTimer = null;
+            const LONG_PRESS_DURATION = 500; 
+
+            function startDrag(e) {
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+                startX = clientX;
+                startY = clientY;
+
+                longPressTimer = setTimeout(() => {
+                    isLongPress = true;
+                    isDragging = true;
+                    burbuja.classList.add('dragging');
+                }, LONG_PRESS_DURATION);
+            }
+
+            function moveDrag(e) {
+                if (!isDragging) return;
+
+                if (e.touches) e.preventDefault();
+
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+                const deltaX = clientX - startX;
+                const deltaY = clientY - startY;
+
+                const newX = Math.max(0, Math.min(window.innerWidth - 60, parseInt(burbuja.style.left || 20) + deltaX));
+                const newY = Math.max(0, Math.min(window.innerHeight - 60, parseInt(burbuja.style.top || 100) + deltaY));
+
+                burbuja.style.left = newX + 'px';
+                burbuja.style.top = newY + 'px';
+
+                startX = clientX;
+                startY = clientY;
+            }
+
+            function endDrag(e) {
+                clearTimeout(longPressTimer);
+                burbuja.classList.remove('dragging');
+
+                isDragging = false;
+                isLongPress = false;
+
+                if (burbuja.style.left !== '' || burbuja.style.top !== '') {
+                    localStorage.setItem('burbujaX', burbuja.style.left);
+                    localStorage.setItem('burbujaY', burbuja.style.top);
+                }
+            }
+
+            burbuja.addEventListener('mousedown', startDrag);
+            document.addEventListener('mousemove', moveDrag);
+            document.addEventListener('mouseup', endDrag);
+
+
+            burbuja.addEventListener('touchstart', startDrag);
+            document.addEventListener('touchmove', moveDrag, { passive: false });
+            document.addEventListener('touchend', endDrag);
+
+            const savedX = localStorage.getItem('burbujaX');
+            const savedY = localStorage.getItem('burbujaY');
+            if (savedX) burbuja.style.left = savedX;
+            if (savedY) burbuja.style.top = savedY;
+        });
+
+        // Menú Hamburguesa
+        document.addEventListener('DOMContentLoaded', function() {
+            const navbarToggle = document.getElementById('navbarToggle');
+            const navbarMenu = document.getElementById('navbarMenu');
+            
+            if (navbarToggle && navbarMenu) {
+                navbarToggle.addEventListener('click', function() {
+                    this.classList.toggle('active');
+                    navbarMenu.classList.toggle('show');
+                });
+                
+                // Cerrar menú al hacer clic en un enlace
+                const links = navbarMenu.querySelectorAll('a, button[type="submit"]');
+                links.forEach(link => {
+                    link.addEventListener('click', function() {
+                        navbarToggle.classList.remove('active');
+                        navbarMenu.classList.remove('show');
+                    });
+                });
+                
+                // Cerrar menú al hacer clic fuera
+                document.addEventListener('click', function(event) {
+                    if (!navbarToggle.contains(event.target) && !navbarMenu.contains(event.target)) {
+                        navbarToggle.classList.remove('active');
+                        navbarMenu.classList.remove('show');
+                    }
                 });
             }
         });

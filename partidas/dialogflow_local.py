@@ -144,7 +144,7 @@ def _normalize(s: str) -> str:
 def _get_response_from_keywords(text: str) -> str:
     text_n = _normalize(text)
 
-    # número simple -> menú
+
     m = re.fullmatch(r"\s*(\d+)\s*", text_n)
     if m:
         n = int(m.group(1))
@@ -183,7 +183,7 @@ def _get_response_from_keywords(text: str) -> str:
     return best or DEFAULT_RESPONSE
 
 
-# API público simple
+
 def get_chat_response(text: str, session_id: str = None, language_code: str = None) -> str:
     return _get_response_from_keywords(text)
 

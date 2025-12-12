@@ -18,26 +18,23 @@ def license_info(request):
             licencia = LicenciaTemporal.objects.filter(usuario=request.user, estado=True).order_by('-fecha_fin').first()
             if licencia:
                 hoy = date.today()
-                # raw_days puede ser negativo si la fecha de fin ya pasó
+
                 raw_days = (licencia.fecha_fin - hoy).days
-                # Conteo inclusivo: por convención del sistema mostramos raw_days + 1
+
                 dias_inclusivos = raw_days + 1
-                # conservar signo para indicar expiradas con valores negativos
+
                 ctx['licencia_dias_restantes'] = dias_inclusivos
                 ctx['licencia_fecha_fin'] = licencia.fecha_fin.isoformat()
 
-                # Mapeo de colores/estados según criterio:
-                # - más de 5 días: estado 'ok' (blanco)
-                # - entre 1 y 5 días (incl.): 'expiring' (amarillo)
-                # - 0 o menos: 'expired' (rojo)
 
-                # valor absoluto para mostrar cuando esté expirado
+
+
                 try:
                     ctx['licencia_dias_abs'] = abs(int(dias_inclusivos))
                 except Exception:
                     ctx['licencia_dias_abs'] = None
 
-                # Determinar estado según umbrales
+
                 if dias_inclusivos is None:
                     ctx['licencia_estado'] = None
                 elif dias_inclusivos > 5:
@@ -47,6 +44,6 @@ def license_info(request):
                 else:
                     ctx['licencia_estado'] = 'expired'
     except Exception:
-        # no bloquear render si hay un error; dejar valores None
+  
         pass
     return ctx

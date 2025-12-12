@@ -16,7 +16,7 @@
         border-radius: 8px; 
     }
     
-    /* Estilos para autocompletado */
+
     #search-suggestions {
         border: 1px solid #ddd;
         border-radius: 4px;
@@ -47,7 +47,7 @@
         margin-left: 8px;
     }
 
-    /* Botón de exportar PDF */
+
     .btn-export-pdf {
         position: absolute;
         right: 10px;
@@ -88,7 +88,7 @@
                                 .join('');
                             suggestionsContainer.style.display = 'block';
 
-                            // Manejar clics en sugerencias
+
                             document.querySelectorAll('.suggestion-item').forEach(item => {
                                 item.addEventListener('click', function() {
                                     searchInput.value = this.dataset.codigo;
@@ -107,7 +107,7 @@
             }, 100);
         });
 
-        // Cerrar sugerencias al hacer clic fuera
+
         document.addEventListener('click', function(e) {
             if (!searchInput.contains(e.target) && !suggestionsContainer.contains(e.target)) {
                 suggestionsContainer.style.display = 'none';

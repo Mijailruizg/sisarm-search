@@ -2,7 +2,7 @@
 
 {% block content %}
 <style>
-/* Dark theme for admin stats panel */
+
 .stats-panel { margin-bottom: 18px; }
 .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-top: 12px; }
 .card { background: #0b0f12; border: 1px solid rgba(255,255,255,0.06); padding: 12px; border-radius: 6px; display:flex; align-items:center; justify-content:space-between; color:#fff }
@@ -23,7 +23,7 @@
 .admin-table thead th { background: rgba(255,255,255,0.02); }
 .visuallyhidden { position:absolute !important; height:1px; width:1px; overflow:hidden; clip:rect(1px, 1px, 1px, 1px); white-space:nowrap }
 
-/* Autocomplete styles */
+
 .autocomplete-list { position:absolute; background:#1a1f26; border:1px solid rgba(255,255,255,0.06); border-radius:4px; max-height:200px; overflow-y:auto; width:100%; z-index:1000; display:none; margin-top:2px; }
 .autocomplete-list.active { display:block; }
 .autocomplete-item { padding:8px; color:#fff; cursor:pointer; border-bottom:1px solid rgba(255,255,255,0.02); }
@@ -35,7 +35,7 @@
 @keyframes spin { to { transform:rotate(360deg); } }
 </style>
 
-<!-- Filters arriba para facilitar uso -->
+
 <div class="module stats">
   <form method="get" id="statsFilters" class="stats-actions" role="search">
     {# Preserve other GET params so admin pagination/search isn't lost #}
@@ -117,7 +117,7 @@
 (function(){
   'use strict';
   
-  // Autocompletado robusto con getElementBy ID
+
   const setupAutocomplete = (inputId, listId, apiUrl) => {
     const input = document.getElementById(inputId);
     const listContainer = document.getElementById(listId);
@@ -133,13 +133,13 @@
       clearTimeout(timeout);
       const q = this.value.trim();
       
-      // Si el campo está vacío, ocultar el dropdown
+
       if(q.length < 1) {
         listContainer.classList.remove('active');
         return;
       }
       
-      // Extraer la última palabra si es el campo de capítulos (para búsqueda parcial)
+
       let searchTerm = q;
       if(inputId === 'capitulos') {
         const parts = q.split(',');
@@ -155,7 +155,7 @@
           .then(data => {
             const items = data.results || [];
             
-            // Limpiar y renderizar items
+
             listContainer.innerHTML = '';
             if(items.length === 0) {
               listContainer.classList.remove('active');
@@ -170,7 +170,7 @@
               
               div.addEventListener('click', function(e) {
                 e.stopPropagation();
-                // Para capítulos, concatenar; para entidades, reemplazar
+
                 if(inputId === 'capitulos') {
                   const current = input.value.trim();
                   if(current) {
@@ -198,7 +198,7 @@
       }, 300);
     });
     
-    // Cerrar dropdown al hacer click fuera
+
     document.addEventListener('click', function(e) {
       if(!input.contains(e.target) && !listContainer.contains(e.target)) {
         listContainer.classList.remove('active');
@@ -206,11 +206,11 @@
     });
   };
   
-  // Inicializar autocompletados
+
   setupAutocomplete('entidad_emite', 'entidad_list', '{% url "api_autocomplete_entidades" %}');
   setupAutocomplete('capitulos', 'capitulos_list', '{% url "api_autocomplete_capitulos" %}');
   
-  // AJAX para aplicar filtros sin recarga
+
   const applyBtn = document.getElementById('applyBtn');
   if(applyBtn) {
     applyBtn.addEventListener('click', function(e) {
@@ -218,11 +218,11 @@
       const entidad = document.getElementById('entidad_emite').value.trim();
       const capitulos = document.getElementById('capitulos').value.trim();
       
-      // Mostrar loading
+
       const statsContainer = document.getElementById('statsContainer');
       statsContainer.innerHTML = '<div style="text-align:center; color:#9ca3af; padding:20px;"><span class="spinner"></span> Cargando...</div>';
       
-      // Llamar AJAX
+
       const url = '{% url "api_stats_by_chapter" %}?entidad_emite=' + encodeURIComponent(entidad) + '&capitulos=' + encodeURIComponent(capitulos);
       fetch(url)
         .then(r => {

@@ -4,20 +4,56 @@
 
 {% block extra_styles %}
 <style>
-  body.detalle-bg { background-image: url('{% static "img/fondo.jpg.png" %}'); background-size: cover; background-position: center; background-repeat: no-repeat; min-height: 100vh; font-family: Arial, sans-serif; }
-  .registro-container { max-width: 500px; margin: 5rem auto; background: rgba(255,255,255,0.95); border-radius: 20px; box-shadow: 0 0 30px rgba(0,0,0,0.25); padding: 2.5rem; text-align: center; }
-  .registro-container h2 { font-size: 2rem; margin-bottom: 0.5rem; }
-  .registro-container p { color: #555; margin-bottom: 1.5rem; }
-  .registro-container label { display: block; text-align: left; font-weight: bold; margin-top: 1rem; }
-  .registro-container input { width: 100%; padding: 0.75rem; border-radius: 10px; border: 1px solid #ccc; margin-top: 0.3rem; }
-  .registro-container button { margin-top: 1.5rem; background-color: #0056b3; color: white; padding: 0.8rem 2rem; border: none; border-radius: 10px; cursor: pointer; font-size: 1rem; width: 100%; transition: background-color 0.3s ease; }
-  .registro-container button:hover { background-color: #0056b3; }
-  .registro-container .login-link { margin-top: 1.5rem; display: block; text-align: center; }
-  .registro-container .login-link a { color: #0056b3; text-decoration: none; }
-  .registro-container .login-link a:hover { text-decoration: underline; }
-  .error-message { color: red; margin-top: 1rem; }
+  body.detalle-bg { background-image: url('{% static "img/fondo.jpg.png" %}'); background-size: cover; background-position: center; background-repeat: no-repeat; min-height: 100vh; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+  
+  .registro-container { max-width: 450px; margin: 2rem auto; background: rgba(255,255,255,0.97); border-radius: 12px; box-shadow: 0 2px 20px rgba(0,0,0,0.15); padding: 2rem; }
+  
+  .registro-header { text-align: center; margin-bottom: 2rem; }
+  .registro-logo { font-size: 2.5rem; font-weight: bold; color: #0056b3; margin-bottom: 0.5rem; }
+  .registro-logo small { display: block; font-size: 0.7rem; color: #999; letter-spacing: 2px; margin-top: 0.3rem; }
+  
+  .registro-title { font-size: 1.8rem; color: #333; margin: 1rem 0 0.5rem 0; }
+  .registro-subtitle { color: #999; font-size: 0.95rem; margin-bottom: 1.5rem; }
+  
+  .login-prompt { background-color: #f8f9fa; border-left: 4px solid #0056b3; padding: 0.75rem 1rem; margin-bottom: 1.5rem; border-radius: 4px; }
+  .login-prompt-text { color: #666; font-size: 0.9rem; margin: 0; }
+  .login-prompt-text a { color: #0056b3; font-weight: 600; text-decoration: none; }
+  .login-prompt-text a:hover { text-decoration: underline; }
+  
+  .form-group { margin-bottom: 1.3rem; }
+  .form-group label { display: block; font-weight: 600; color: #333; margin-bottom: 0.4rem; font-size: 0.9rem; }
+  .form-group input { width: 100%; padding: 0.7rem 0.9rem; border: 2px solid #ddd; border-radius: 6px; font-size: 0.95rem; box-sizing: border-box; transition: border-color 0.3s ease, box-shadow 0.3s ease; }
+  .form-group input:focus { outline: none; border-color: #0056b3; box-shadow: 0 0 0 3px rgba(0, 86, 179, 0.1); }
+  .form-group input.is-invalid { border-color: #dc3545; background-color: #fff5f5; }
+  .form-group input.is-valid { border-color: #28a745; }
+  
+  .validation-messages { margin-top: 0.5rem; display: none; list-style: none; padding: 0; }
+  .validation-messages.show { display: block; }
+  .validation-messages li { color: #dc3545; font-size: 0.8rem; list-style: none; margin: 0.3rem 0; }
+  .validation-messages li:before { content: "✕ "; margin-right: 0.4rem; font-weight: bold; }
+  .validation-messages li.valid { color: #28a745; }
+  .validation-messages li.valid:before { content: "✓ "; }
+  
+  .submit-btn { width: 100%; padding: 0.8rem; background-color: #0056b3; color: white; border: none; border-radius: 6px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background-color 0.3s ease, opacity 0.3s ease; margin-top: 1.5rem; }
+  .submit-btn:hover:not(:disabled) { background-color: #004094; }
+  .submit-btn:active:not(:disabled) { background-color: #003366; }
+  .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+  
+  .terms-text { font-size: 0.75rem; color: #999; text-align: center; margin-top: 1.5rem; line-height: 1.4; }
+  .terms-text a { color: #0056b3; text-decoration: none; }
+  .terms-text a:hover { text-decoration: underline; }
+  
   .marca-agua { position: fixed; bottom: 10px; right: 10px; opacity: 0.08; font-size: 2rem; color: #000; pointer-events: none; z-index: 1; }
   nav .navbar-nav li:not(:last-child):not(.nav-item-login) { display: none !important; }
+  
+  @media (max-width: 576px) {
+    .registro-container { margin: 1rem; padding: 1.5rem; border-radius: 8px; }
+    .registro-logo { font-size: 2rem; }
+    .registro-title { font-size: 1.3rem; }
+    .form-group input { padding: 0.6rem 0.8rem; font-size: 0.9rem; }
+    .submit-btn { padding: 0.7rem; font-size: 0.95rem; }
+    .terms-text { font-size: 0.7rem; }
+  }
 </style>
 {% endblock %}
 
@@ -26,27 +62,205 @@
 {% block content %}
 
 <div class="registro-container">
-    <h2>Crear nueva cuenta</h2>
-    <p>Completa el siguiente formulario.</p>
-
-    <form method="post" autocomplete="off">
-        {% csrf_token %}
-        {% for field in form %}
-            <div class="mb-3">
-                {{ field.label_tag }}
-                {{ field|add_class:"form-control" }}
-                {% if field.errors %}
-                    <div class="text-danger small">{{ field.errors|striptags }}</div>
-                {% endif %}
-            </div>
-        {% endfor %}
-        <button type="submit">Registrarme</button>
-    </form>
-
-    <div class="login-link">
-        ¿Ya tienes cuenta? <a href="{% url 'login' %}">Inicia sesión</a>
+  <div class="registro-header">
+    <div class="registro-logo">
+      SISARM
+      <small>SEARCH</small>
     </div>
+  </div>
+  
+  <h1 class="registro-title">Bienvenido</h1>
+  <p class="registro-subtitle">Crea tu cuenta para continuar</p>
+  
+  <div class="login-prompt">
+    <p class="login-prompt-text">¿Tienes una cuenta? <a href="{% url 'login' %}">Inicia sesión</a></p>
+  </div>
+
+  <form method="post" autocomplete="off" id="registroForm">
+    {% csrf_token %}
+    
+
+    <div class="form-group">
+      <label for="id_username">Nombre de usuario</label>
+      <input type="text" name="username" id="id_username" placeholder="Usuario.1" maxlength="150">
+      <ul class="validation-messages" id="username_messages">
+        <li id="username_error">El nombre de usuario no puede contener espacios</li>
+      </ul>
+    </div>
+    
+ 
+    <div class="form-group">
+      <label for="id_email">Correo electrónico</label>
+      <input type="email" name="email" id="id_email" placeholder="tu@correo.com">
+      <ul class="validation-messages" id="email_messages">
+        <li id="email_error">Ingresa un correo electrónico válido</li>
+      </ul>
+    </div>
+    
+ 
+    <div class="form-group">
+      <label for="id_password1">Contraseña</label>
+      <input type="password" name="password1" id="id_password1" placeholder="••••••••">
+      <ul class="validation-messages" id="password1_messages">
+        <li id="length_error">La contraseña debe tener al menos 8 caracteres</li>
+        <li id="letter_error">La contraseña debe contener al menos una letra</li>
+        <li id="number_error">La contraseña debe contener al menos un número</li>
+      </ul>
+    </div>
+    
+
+    <div class="form-group">
+      <label for="id_password2">Confirmar contraseña</label>
+      <input type="password" name="password2" id="id_password2" placeholder="••••••••">
+      <ul class="validation-messages" id="password2_messages">
+        <li id="match_error">Las contraseñas no coinciden</li>
+      </ul>
+    </div>
+    
+    <button type="submit" class="submit-btn" id="submitBtn">Registrarte</button>
+  </form>
+
+  <p class="terms-text">
+    Al hacer clic en Registrarte, aceptas nuestros 
+    <a href="#">Términos de servicio</a> y nuestra 
+    <a href="#">Política de privacidad</a>.
+  </p>
 </div>
 
 <div class="marca-agua">SISARM Bolivia</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const form = document.getElementById('registroForm');
+  const usernameInput = document.getElementById('id_username');
+  const emailInput = document.getElementById('id_email');
+  const password1Input = document.getElementById('id_password1');
+  const password2Input = document.getElementById('id_password2');
+  const submitBtn = document.getElementById('submitBtn');
+
+
+  usernameInput.addEventListener('input', function() {
+    const messages = document.getElementById('username_messages');
+    const hasSpace = this.value.includes(' ');
+    const errorLi = document.getElementById('username_error');
+    
+    if (this.value.length > 0) {
+      messages.classList.add('show');
+      if (hasSpace) {
+        errorLi.classList.remove('valid');
+        this.classList.add('is-invalid');
+        this.classList.remove('is-valid');
+      } else {
+        errorLi.classList.add('valid');
+        this.classList.remove('is-invalid');
+        this.classList.add('is-valid');
+      }
+    } else {
+      messages.classList.remove('show');
+      this.classList.remove('is-invalid', 'is-valid');
+    }
+    validateForm();
+  });
+
+
+  emailInput.addEventListener('input', function() {
+    const messages = document.getElementById('email_messages');
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const isValid = emailRegex.test(this.value);
+    const errorLi = document.getElementById('email_error');
+    
+    if (this.value.length > 0) {
+      messages.classList.add('show');
+      if (isValid) {
+        errorLi.classList.add('valid');
+        this.classList.remove('is-invalid');
+        this.classList.add('is-valid');
+      } else {
+        errorLi.classList.remove('valid');
+        this.classList.add('is-invalid');
+        this.classList.remove('is-valid');
+      }
+    } else {
+      messages.classList.remove('show');
+      this.classList.remove('is-invalid', 'is-valid');
+    }
+    validateForm();
+  });
+
+
+  password1Input.addEventListener('input', function() {
+    const messages = document.getElementById('password1_messages');
+    const lengthError = document.getElementById('length_error');
+    const letterError = document.getElementById('letter_error');
+    const numberError = document.getElementById('number_error');
+    
+    const hasMinLength = this.value.length >= 8;
+    const hasLetter = /[a-zA-Z]/.test(this.value);
+    const hasNumber = /[0-9]/.test(this.value);
+    
+    if (this.value.length > 0) {
+      messages.classList.add('show');
+      
+      hasMinLength ? lengthError.classList.add('valid') : lengthError.classList.remove('valid');
+      hasLetter ? letterError.classList.add('valid') : letterError.classList.remove('valid');
+      hasNumber ? numberError.classList.add('valid') : numberError.classList.remove('valid');
+      
+      if (hasMinLength && hasLetter && hasNumber) {
+        this.classList.remove('is-invalid');
+        this.classList.add('is-valid');
+      } else {
+        this.classList.add('is-invalid');
+        this.classList.remove('is-valid');
+      }
+    } else {
+      messages.classList.remove('show');
+      this.classList.remove('is-invalid', 'is-valid');
+    }
+    
+
+    validatePasswordMatch();
+    validateForm();
+  });
+
+
+  password2Input.addEventListener('input', function() {
+    validatePasswordMatch();
+    validateForm();
+  });
+
+  function validatePasswordMatch() {
+    const messages = document.getElementById('password2_messages');
+    const matchError = document.getElementById('match_error');
+    
+    if (password2Input.value.length > 0) {
+      messages.classList.add('show');
+      const match = password1Input.value === password2Input.value;
+      
+      if (match) {
+        matchError.classList.add('valid');
+        password2Input.classList.remove('is-invalid');
+        password2Input.classList.add('is-valid');
+      } else {
+        matchError.classList.remove('valid');
+        password2Input.classList.add('is-invalid');
+        password2Input.classList.remove('is-valid');
+      }
+    } else {
+      messages.classList.remove('show');
+      password2Input.classList.remove('is-invalid', 'is-valid');
+    }
+  }
+
+  function validateForm() {
+    const usernameValid = !usernameInput.value.includes(' ') && usernameInput.value.length > 0;
+    const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailInput.value);
+    const passwordValid = /[a-zA-Z]/.test(password1Input.value) && 
+                          /[0-9]/.test(password1Input.value) && 
+                          password1Input.value.length >= 8;
+    const passwordMatch = password1Input.value === password2Input.value && password1Input.value.length > 0;
+    
+    submitBtn.disabled = !(usernameValid && emailValid && passwordValid && passwordMatch);
+  }
+});
+</script>
 {% endblock %}

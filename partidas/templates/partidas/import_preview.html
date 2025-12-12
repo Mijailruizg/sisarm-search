@@ -5,6 +5,48 @@
 <style>
   body.detalle-bg { background-image: url('{% static "img/fondo.jpg.png" %}') !important; background-size: cover !important; background-repeat: no-repeat !important; background-attachment: fixed !important; background-position: center center !important; }
   .card { background: rgba(255,255,255,0.95); }
+
+
+  .import-preview-container { padding: 1rem; }
+  .import-preview-title { font-size: 1.25rem; margin-bottom: 0.75rem; }
+  .import-preview-stats { font-size: 0.95rem; margin-bottom: 1rem; }
+  
+  .form-check-label { font-size: 0.95rem; }
+  .btn { font-size: 0.9rem; padding: 0.4rem 0.8rem; }
+
+
+  .table-responsive-wrap { overflow-x: auto; border-radius: 0.25rem; }
+  .table { font-size: 0.85rem; margin-bottom: 0; }
+  .table thead th { padding: 0.5rem; font-size: 0.8rem; font-weight: 600; }
+  .table tbody td { padding: 0.4rem; }
+
+ 
+  @media (max-width: 575.98px) {
+    .import-preview-container { padding: 0.75rem; }
+    .import-preview-title { font-size: 1rem; margin-bottom: 0.5rem; }
+    .import-preview-stats { font-size: 0.85rem; margin-bottom: 0.75rem; }
+    
+    .form-check { margin-bottom: 0.75rem !important; }
+    .form-check-label { font-size: 0.85rem; }
+    
+    .btn { font-size: 0.8rem; padding: 0.35rem 0.6rem; }
+    .btn-group-sm { gap: 0.25rem; }
+    
+    .table { font-size: 0.75rem; }
+    .table thead th { padding: 0.35rem 0.25rem; font-size: 0.7rem; }
+    .table tbody td { padding: 0.3rem 0.25rem; }
+    
+
+    .hide-mobile { display: none; }
+    
+    .alert { padding: 0.5rem 0.75rem; font-size: 0.85rem; margin-bottom: 0.75rem; }
+    hr { margin: 0.75rem 0; }
+  }
+
+
+  @media (min-width: 576px) {
+    .hide-mobile { display: table-cell; }
+  }
 </style>
 {% endblock %}
 
@@ -12,53 +54,100 @@
 
 {% block content %}
 <div class="card">
-  <div class="card-body">
-    <h5 class="card-title">Vista previa de importación: {{ archivo_nombre }}</h5>
-    <p>Filas detectadas: <strong>{{ preview.total }}</strong>. Filas con errores: <strong>{{ preview.errors_count }}</strong>.</p>
+  <div class="card-body import-preview-container">
+    <h5 class="card-title import-preview-title">Vista previa: {{ archivo_nombre }}</h5>
+    <p class="import-preview-stats">Filas: <strong>{{ preview.total }}</strong> | Errores: <strong class="{% if preview.errors_count > 0 %}text-danger{% else %}text-success{% endif %}">{{ preview.errors_count }}</strong></p>
 
     <form method="post">
       {% csrf_token %}
       <input type="hidden" name="confirm" value="1" />
-      <div class="mb-3 form-check">
-        <input type="checkbox" class="form-check-input" id="update_existing" name="update_existing" value="1">
-        <label class="form-check-label" for="update_existing">Actualizar registros existentes con el mismo código</label>
+      
+
+      <input type="hidden" name="update_existing" value="1" />
+      <input type="hidden" name="sync_catalog" value="1" />
+      
+      <div class="alert alert-info alert-sm">
+        <strong>Modo automático:</strong> Se actualizarán los códigos existentes y se sincronizará por capítulo (eliminando los no encontrados).
       </div>
-      <button type="submit" class="btn btn-primary">Confirmar importación</button>
-      <a href="{% url 'importar_excel' %}" class="btn btn-secondary">Cancelar</a>
+
+      {% if preview.chapters %}
+        <div class="alert alert-info alert-sm">
+          Capítulo detectado: <strong>{{ preview.chapters.0 }}</strong>
+        </div>
+      {% endif %}
+
+      {% if preview.has_blocking_errors %}
+        <div class="alert alert-warning">Corrige errores antes de confirmar.</div>
+      {% endif %}
+
+      <div class="d-flex gap-2 flex-wrap">
+        <button type="submit" class="btn btn-primary btn-sm" id="confirm_btn" {% if preview.has_blocking_errors %}disabled{% endif %}>Confirmar</button>
+        <a href="{% url 'importar_excel' %}" class="btn btn-secondary btn-sm">Cancelar</a>
+      </div>
     </form>
 
+    <script>
+
+      function recalcularErrores() {
+        const confirmBtn = document.getElementById('confirm_btn');
+        let hasRealErrors = false;
+
+
+        document.querySelectorAll('tbody tr').forEach(row => {
+          const errorText = row.querySelector('.text-danger');
+          if (errorText) {
+            const error = errorText.textContent.trim();
+
+            if (error !== 'codigo ya existe en la base de datos' && error !== '') {
+              hasRealErrors = true;
+            }
+          }
+        });
+
+
+        if (hasRealErrors) {
+          confirmBtn.disabled = true;
+        } else {
+          confirmBtn.disabled = false;
+        }
+      }
+
+
+      document.addEventListener('DOMContentLoaded', function() {
+        recalcularErrores();
+      });
+    </script>
+
     <hr />
-    <div style="max-height:400px; overflow:auto;">
-      <table class="table table-sm table-striped">
-        <thead>
+
+    <div class="table-responsive-wrap">
+      <table class="table table-sm table-striped table-hover">
+        <thead class="table-light">
           <tr>
             <th>Línea</th>
             <th>Código</th>
             <th>Descripción</th>
-            <th>Capítulo</th>
-            <th>Partida</th>
-            <th>ACE22</th>
-            <th>Errores</th>
+            <th class="hide-mobile">Capítulo</th>
+            <th class="hide-mobile">Partida</th>
+            <th class="hide-mobile">ACE22</th>
+            <th>Estado</th>
           </tr>
         </thead>
         <tbody>
           {% for row in preview.rows %}
           <tr>
-            <td>{{ row.line }}</td>
-            <td>{{ row.codigo }}</td>
-            <td>{{ row.descripcion|truncatechars:80 }}</td>
-            <td>{{ row.capitulo }}</td>
-            <td>{{ row.partida }}</td>
-            <td>{{ row.ace22 }}</td>
+            <td><small>{{ row.line }}</small></td>
+            <td><strong>{{ row.codigo }}</strong></td>
+            <td><small>{{ row.descripcion|truncatechars:40 }}</small></td>
+            <td class="hide-mobile"><small>{% if row.chapter %}{{ row.chapter }}{% else %}{{ row.capitulo }}{% endif %}</small></td>
+            <td class="hide-mobile"><small>{{ row.partida }}</small></td>
+            <td class="hide-mobile"><small>{{ row.ace22 }}</small></td>
             <td>
               {% if row.errors %}
-                <ul class="mb-0">
-                  {% for e in row.errors %}
-                  <li class="text-danger">{{ e }}</li>
-                  {% endfor %}
-                </ul>
+                <span class="badge bg-danger">Error</span>
+                <small class="d-block text-danger" style="font-size: 0.7rem;">{{ row.errors.0 }}</small>
               {% else %}
-                <span class="text-success">OK</span>
+                <span class="badge bg-success">OK</span>
               {% endif %}
             </td>
           </tr>

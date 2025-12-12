@@ -27,7 +27,7 @@ urlpatterns = [
     path('administrador/usuarios/<int:usuario_id>/editar/', views.editar_usuario, name='editar_usuario'),
     path('administrador/usuarios/<int:usuario_id>/toggle/', views.toggle_usuario_activo, name='toggle_usuario_activo'),
     path('exportar-excel/', views.exportar_partidas_excel, name='exportar_partidas_excel'),
-    # usar ruta distinta a /admin/ para evitar colisión con el admin de Django
+
     path('admin-busquedas/', views.admin_busquedas, name='admin_busquedas'),
     path('referencia/solicitar-ayuda/<int:referencia_id>/', views.solicitar_ayuda_documento, name='solicitar_ayuda_documento'),
     path('manuales/', views.ver_manuales, name='manuales'),

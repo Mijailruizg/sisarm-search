@@ -8,8 +8,7 @@ from .models import PartidaReferencia
 from .models import SearchStatisticTotal
 from .models import SearchStatisticProductTotal
 from .models import SolicitudSoporte
-# SearchStatistic and SearchStatisticTotal are kept in models for analytics
-# but not registered in the admin to avoid showing the ranking button.
+
 from django.utils import timezone
 from datetime import timedelta
 from django.db.models import Q
@@ -29,16 +28,15 @@ class UsuarioAdmin(admin.ModelAdmin):
 
     def enviar_notificacion_por_correo(self, request, queryset):
         """Acción de admin: mostrar formulario intermedio para asunto/mensaje y enviar email a los seleccionados."""
-        # cuando el formulario se reenvía desde la plantilla intermedia, Django incluye
-        # un hidden input 'post'='yes' para confirmar la acción; detectarlo y ejecutar.
+
         if request.POST.get('post') == 'yes':
-            # ejecutar envío
+
             subject = request.POST.get('subject', '').strip()
             message_body = request.POST.get('message', '').strip()
             from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', '') or ''
             sent = 0
             from django.urls import reverse
-            # construir enlace absoluto a la página de ayuda/chat que activará la acción de abrir Soporte
+
             try:
                 chat_url = request.build_absolute_uri(reverse('chat_asistente'))
             except Exception:
@@ -47,10 +45,9 @@ class UsuarioAdmin(admin.ModelAdmin):
             for user in queryset:
                 if user.email:
                     try:
-                        # permitir placeholders simples
+
                         body = message_body.replace('{username}', user.username)
-                        # añadir enlace a soporte (plain y html)
-                        # preparar parametros prefill: email y un mensaje sugerido
+
                         import urllib.parse as _up
                         prefill_params = {
                             'open_support': '1',
@@ -67,7 +64,7 @@ class UsuarioAdmin(admin.ModelAdmin):
 
                         err_msg = None
                         try:
-                            # usar html_message para que el link sea clickable
+
                             sent_count = send_mail(subject, body_plain, from_email, [user.email], fail_silently=False, html_message=body_html)
                             success = bool(sent_count)
                         except Exception as e:
@@ -86,12 +83,12 @@ class UsuarioAdmin(admin.ModelAdmin):
                         if success:
                             sent += 1
                     except Exception:
-                        # seguir con los demás
+
                         continue
             self.message_user(request, f"Notificación enviada a {sent} usuario(s).", level=messages.SUCCESS)
             return None
 
-        # mostrar formulario intermedio
+
         context = {
             'users': queryset,
             'selected': [str(user.pk) for user in queryset],
@@ -105,7 +102,7 @@ class UsuarioAdmin(admin.ModelAdmin):
 
     def activar_usuarios(self, request, queryset):
         updated = queryset.update(is_active=True)
-        # registrar en historia
+
         for user in queryset:
             try:
                 HistoriaActividad.objects.create(usuario=request.user if request.user.is_authenticated else None,
@@ -130,7 +127,7 @@ class UsuarioAdmin(admin.ModelAdmin):
 
     def save_model(self, request, obj, form, change):
         """Registrar en HistoriaActividad la creación/edición hecha desde admin."""
-        # determinar si es creación o edición
+
         is_create = not bool(obj.pk and change)
         super().save_model(request, obj, form, change)
         try:
@@ -161,13 +158,13 @@ class UsuarioAdmin(admin.ModelAdmin):
 
     def change_view(self, request, object_id, form_url='', extra_context=None):
         extra = extra_context or {}
-        # URL para enviar notificación al usuario desde su change form
+
         from django.urls import reverse
         extra['send_notification_url'] = reverse('admin:partidas_usuario_send_notification', args=[object_id])
         return super().change_view(request, object_id, form_url, extra_context=extra)
 
     def send_notification_view(self, request, usuario_id):
-        # vista para componer y enviar un email a un único usuario desde el admin
+
         if not self.has_change_permission(request):
             from django.core.exceptions import PermissionDenied
             raise PermissionDenied
@@ -184,9 +181,9 @@ class UsuarioAdmin(admin.ModelAdmin):
             from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', '') or ''
             if usuario.email:
                 try:
-                    # permitir placeholders simples
+
                     body = message_body.replace('{username}', usuario.username)
-                    # construir enlace absoluto a la página de ayuda/chat que activará la acción de abrir Soporte
+
                     from django.urls import reverse
                     try:
                         chat_url = request.build_absolute_uri(reverse('chat_asistente'))
@@ -221,11 +218,11 @@ class UsuarioAdmin(admin.ModelAdmin):
                     self.message_user(request, f'Error al enviar correo a {usuario.email}', level=messages.ERROR)
             else:
                 self.message_user(request, 'El usuario no tiene email registrado.', level=messages.WARNING)
-            # redirigir de vuelta al change form
+
             from django.urls import reverse
             return redirect(reverse('admin:partidas_usuario_change', args=[usuario_id]))
 
-        # GET: mostrar formulario simple
+
         context = {'usuario': usuario}
         return render(request, 'admin/partidas/usuario/send_single_notification.html', context)
 
@@ -278,7 +275,7 @@ class BusquedaAdmin(admin.ModelAdmin):
         """Genera estadísticas agregadas para el último mes y las guarda en SearchStatistic."""
         fin = timezone.now().date()
         inicio = fin - timedelta(days=30)
-        # Usar contadores diarios para rendimiento: sumar SearchStatisticDaily por capítulo en el rango
+
         from .models import SearchStatisticDaily
         daily_qs = SearchStatisticDaily.objects.filter(fecha__range=(inicio, fin))
         cap_counts = {}
@@ -286,7 +283,7 @@ class BusquedaAdmin(admin.ModelAdmin):
             cap = d.capitulo or 'Sin capítulo'
             cap_counts[cap] = cap_counts.get(cap, 0) + d.count
 
-        # Notificar al admin con el total de capítulos calculados
+
         messages.success(request, f"Ranking calculado para {inicio} — {fin}. {len(cap_counts)} capítulos encontrados.")
     generar_ranking_ultimo_mes.short_description = 'Generar ranking (último mes)'
 
@@ -312,8 +309,7 @@ class SearchStatisticTotalAdmin(admin.ModelAdmin):
     ordering = ('-total',)
     readonly_fields = ('capitulo', 'total', 'actualizado_en')
 
-# Note: SearchStatistic (periodic aggregated snapshots) remains unregistered
-# to avoid duplicate UI; only the accumulated ranking is exposed as requested.
+
 
 
 @admin.register(SearchStatisticProductTotal)
@@ -323,7 +319,7 @@ class SearchStatisticProductTotalAdmin(admin.ModelAdmin):
     search_fields = ('codigo', 'descripcion', 'capitulo')
     ordering = ('-total',)
     readonly_fields = ('codigo', 'descripcion', 'capitulo', 'total', 'actualizado_en')
-    # Usar plantilla personalizada para mostrar tarjetas (layout 'bonito')
+
     change_list_template = 'admin/partidas/searchstatisticproducttotal/change_list.html'
 
     def changelist_view(self, request, extra_context=None):
@@ -354,8 +350,7 @@ class SearchStatisticProductTotalAdmin(admin.ModelAdmin):
             })
 
         extra = {'top_products': top, 'top_chapters': top_chapters, 'title': 'Ranking de productos buscados'}
-        # Además: calcular estadísticas de gravamen por capítulo (promedio, min, max, count)
-        # Permitir filtros simples vía GET: entidad_emite, capitulos (coma-separados)
+
         entidad = request.GET.get('entidad_emite', '').strip()
         capitulos_param = request.GET.get('capitulos', '').strip()
         try:
@@ -383,7 +378,7 @@ class SearchStatisticProductTotalAdmin(admin.ModelAdmin):
                 caps = [c.strip() for c in capitulos_param.split(',') if c.strip()]
                 part_qs = part_qs.filter(capitulo__in=caps)
 
-            # Agrupar por capítulo en Python (por robustez con texto en gravamen)
+
             chap_map = {}
             for p in part_qs:
                 cap = p.capitulo or 'Sin capítulo'
@@ -410,12 +405,12 @@ class SearchStatisticProductTotalAdmin(admin.ModelAdmin):
                     'max': float(round(mx, 2)) if mx is not None else None,
                     'count': data['count']
                 })
-            # ordenar por capítulo
+
             chapter_stats = sorted(chapter_stats, key=lambda x: (x['capitulo'] or ''))
             extra['chapter_stats'] = chapter_stats
             extra['stats_filters'] = {'entidad_emite': entidad, 'capitulos': capitulos_param}
         except Exception:
-            # No bloquear el admin si ocurre un error; mostrar nada
+
             extra['chapter_stats'] = []
             extra['stats_filters'] = {'entidad_emite': '', 'capitulos': ''}
         if extra_context:
@@ -430,7 +425,7 @@ class SearchStatisticProductTotalAdmin(admin.ModelAdmin):
         search_fields = ('correo', 'asunto', 'mensaje', 'usuario__username', 'nombre')
         readonly_fields = ('creado_en',)
         ordering = ('-creado_en',)
-        # permitir edición rápida del estado en la lista y acciones masivas
+
         list_editable = ('estado',)
         actions = ['marcar_como_enviado', 'marcar_como_pendiente', 'marcar_como_error', 'abrir_sistema']
 
@@ -475,7 +470,7 @@ class NotificationLogAdmin(admin.ModelAdmin):
         attempted = 0
         succeeded = 0
         for log in queryset:
-            # intentar reenviar al email registrado
+
             to_addr = log.destinatario_email
             asunto = log.asunto or ''
             cuerpo = log.cuerpo or ''
@@ -487,7 +482,7 @@ class NotificationLogAdmin(admin.ModelAdmin):
             except Exception as e:
                 success = False
                 err_msg = str(e)
-            # actualizar el registro existente
+
             log.success = success
             log.enviado_por = request.user if request.user.is_authenticated else None
             log.fecha_hora = timezone.now()
@@ -501,10 +496,10 @@ class NotificationLogAdmin(admin.ModelAdmin):
     reintentar_envio.short_description = 'Reintentar envío de notificaciones seleccionadas'
 
 
-# Crear un registro por defecto del Manual de Administrador si no existe (útil para entornos de desarrollo)
+
 try:
     from django.contrib.sites.models import Site
-    # Evitar ejecutar durante migraciones iniciales (cuando la DB no está lista)
+
     from django.db import connection
     if connection.introspection.table_names():
         Manual.objects.get_or_create(
@@ -514,7 +509,7 @@ try:
                 'descripcion': 'Manual para administradores: instalación, importación y gestión de partidas.'
             }
         )
-        # Añadir guía del buscador y manual de usuario si no existen
+
         Manual.objects.get_or_create(
             tipo='Guía del Buscador',
             defaults={
@@ -532,7 +527,7 @@ try:
             }
         )
 except Exception:
-    # No interrumpir el arranque si la DB no está lista o en migraciones
+
     pass
 
 

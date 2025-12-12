@@ -9,7 +9,7 @@ class PartidasCrudTests(TestCase):
         self.user = Usuario.objects.create_user(username='admin2', password='pass1234', rol=self.rol)
         self.user.is_superuser = True
         self.user.save()
-        # Crear una licencia temporal válida para el usuario
+
         from partidas.models import LicenciaTemporal
         from datetime import date, timedelta
         LicenciaTemporal.objects.create(
@@ -21,15 +21,15 @@ class PartidasCrudTests(TestCase):
         self.client.force_login(self.user)
 
     def test_create_edit_delete_partida_and_history(self):
-        # Verify login
+
         resp_inicio = self.client.get(reverse('inicio'))
         self.assertEqual(resp_inicio.status_code, 200, f"GET inicio failed with status {resp_inicio.status_code}")
         
-        # First, verify GET to form works
+
         resp_get = self.client.get(reverse('crear_partida'))
         self.assertEqual(resp_get.status_code, 200, f"GET crear_partida failed with status {resp_get.status_code}")
         
-        # create with all required fields
+
         data = {
             'capitulo': '01',
             'partida': '0101',
@@ -51,10 +51,10 @@ class PartidasCrudTests(TestCase):
             'referencia_legal': 'N/A',
         }
         resp = self.client.post(reverse('crear_partida'), data, follow=True)
-        # follow=True should render panel_partidas after redirect
+
         self.assertEqual(resp.status_code, 200, f"POST crear_partida failed with status {resp.status_code}")
         p = PartidaArancelaria.objects.filter(codigo='TST001').first()
-        # if creation failed, include form errors in assertion message
+
         if p is None:
             form = None
             try:
@@ -63,11 +63,11 @@ class PartidasCrudTests(TestCase):
                 form = None
             errs = form.errors.as_json() if form else 'no form in context'
             self.fail(f"Partida not created. Form errors: {errs}")
-        # history entry created
+
         h = HistoriaActividad.objects.filter(accion__icontains='crear partida').first()
         self.assertIsNotNone(h)
 
-        # edit - use all fields for edit too
+
         resp2 = self.client.post(reverse('editar_partida', args=[p.pk]), {
             'capitulo': p.capitulo,
             'partida': p.partida,
@@ -94,7 +94,7 @@ class PartidasCrudTests(TestCase):
         h2 = HistoriaActividad.objects.filter(accion__icontains='editar partida').first()
         self.assertIsNotNone(h2)
 
-        # delete (confirm via POST)
+
         resp3 = self.client.post(reverse('eliminar_partida', args=[p.pk]))
         self.assertEqual(resp3.status_code, 302)
         self.assertFalse(PartidaArancelaria.objects.filter(codigo='TST001').exists())
