@@ -1,4 +1,4 @@
-# Python
+
 __pycache__/
 *.py[cod]
 *$py.class
@@ -26,7 +26,7 @@ share/python-wheels/
 *.egg
 MANIFEST
 
-# Django
+
 *.log
 local_settings.py
 db.sqlite3
@@ -34,12 +34,12 @@ db.sqlite3-journal
 /media
 /staticfiles
 
-# Environment variables
+
 .env
 .env.local
 set_env.bat
 
-# IDE
+
 .vscode/
 .idea/
 *.swp
@@ -47,15 +47,15 @@ set_env.bat
 *~
 .DS_Store
 
-# Credentials and sensitive files
+
 credentials/
 sent_emails/
 
-# Testing
+
 .coverage
 .pytest_cache/
 htmlcov/
 
-# OS
+
 Thumbs.db
 .DS_Store
